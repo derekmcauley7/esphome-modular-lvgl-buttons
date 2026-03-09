@@ -36,6 +36,8 @@ lvgl:
                         text: ${icon}
                     - label:
                         align: bottom_left
+                        long_mode: wrap
+                        width: 100%
                         id: label_${uid}
                         text: ${text}
                   on_short_click:

@@ -39,6 +39,8 @@ lvgl:
                         align: bottom_left
                         id: label_${uid}
                         text: ${text}
+                        long_mode: wrap
+                        width: 100%
                   on_short_click:
                     - homeassistant.action:
                         action: homeassistant.toggle
