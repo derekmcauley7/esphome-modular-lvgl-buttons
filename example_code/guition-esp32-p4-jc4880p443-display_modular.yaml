@@ -44,12 +44,15 @@ image:
 
 # Time update script - This is run once per second. Use it to update any time related labels.
 script:
+  # --------------------------------------------------------------------------
+  # This script is called once per minute.
+  # Any packages in this library will !extend time_update to update their own labels.
+  # You can add code here to update your own custom labels.
+  # --------------------------------------------------------------------------
   - id: time_update
     then:
-      # The format %I:%M %p will display the time in a 12-hour format with "am" or "pm" included
-      - lvgl.label.update:
-          id: time_label
-          text: !lambda 'return id(system_time).now().strftime("%l:%M %P");'
+      - lambda: |-
+          // No operation
 
 packages:
   # Generic configuration for ESP32 screens

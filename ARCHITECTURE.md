@@ -208,7 +208,7 @@ binary_sensor:
 
 - **`color_picker.yaml`** is structured differently — it provides raw LVGL widget properties meant to be inlined, not a complete `lvgl: pages:` package.
 - **`sensor_button.yaml`** uses `!extend` on the sensor ID rather than creating a new one — the sensor must already exist.
-- **`time_button.yaml`** creates a widget with ID `time_label` (not `label_${uid}`), so only one time button per device.
+- **`time_button.yaml`** uses `!extend time_update` to update its label automatically — the example file only needs a base `time_update` script with a NOOP lambda placeholder.
 - **`local_relay_button.yaml`** uses an additional `ha_name` variable and `$entity_id` refers to an output pin ID, not an HA entity.
 
 ## Theme & Styling System
@@ -406,8 +406,6 @@ This runs `esphome config` on every file in `example_code/` to verify YAML compi
 ## Known Issues & TODOs
 
 1. **`shadow_width: 0`** in `theme_style.yaml` is explicitly set despite LVGL default being 0 — removing it causes visual issues.
-2. **Loading page is 480px only**: `pages/loading.yaml` — no variants exist for other display sizes.
-3. **`time_button.yaml` uses hardcoded ID `time_label`**: Only one time button per device is supported.
 
 ## Creating a New Button Component
 

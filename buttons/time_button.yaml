@@ -1,5 +1,5 @@
 ---
-# Change page button
+# Time display button
 # vars:
 #    uid:
 #    page_id:
@@ -30,10 +30,17 @@ lvgl:
                   bg_opa: TRANSP
                   widgets:
                     - label:
-                        id: time_label
+                        id: label_${uid}
                         styles: time_style
                         text: '12:00 pm'
 
                   on_short_click:
                     then:
                       lvgl.page.show: ${click_page | default(main_page)}
+
+script:
+  - id: !extend time_update
+    then:
+      - lvgl.label.update:
+          id: label_${uid}
+          text: !lambda 'return id(system_time).now().strftime("%l:%M %P");'
