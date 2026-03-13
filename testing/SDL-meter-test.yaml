@@ -1,0 +1,171 @@
+---
+external_components:
+  - source: github://pr#12312
+    components: [font, image, lvgl]
+    refresh: 1h
+
+host:
+  mac_address: "62:23:45:AF:B3:06"
+
+display:
+  - platform: sdl
+    id: my_display
+    update_interval: never
+    auto_clear_enabled: false
+    dimensions:
+      width: 480
+      height: 480
+
+touchscreen:
+  platform: sdl
+  transform:
+    mirror_x: false
+    mirror_y: false
+  id: my_touchscreen
+  display: my_display
+  # on_touch:
+  #   - logger.log:
+  #       format: Touch at (%d, %d)
+  #       args: [touch.x, touch.y]
+  #   - lambda: |-
+  #       ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
+  #           touch.x,
+  #           touch.y,
+  #           touch.x_raw,
+  #           touch.y_raw
+  #           );
+
+esphome:
+  name: "meter-test"
+
+
+logger:
+  level: debug
+
+image:
+  rgb565:
+    alpha_channel:
+      - file: esphome-modular-lvgl-buttons/tides/assets/images/tide_pointer.svg
+        id: tide_pointer
+        resize: 200x88  # 2.272  - 22x22
+font:
+  - file: "gfonts://Roboto@700"
+    id: roboto30_bold
+    size: 30
+    bpp: 8
+  - file: "esphome-modular-lvgl-buttons/assets/fonts/Nunito-SemiBold.ttf"
+    id: nunito_24
+    size: 24
+    bpp: 8
+
+
+
+
+# -------------------------------------------------------------------------
+# LVGL pages and buttons
+# -------------------------------------------------------------------------
+# This is the main LVGL section. We start with a simple 4x4 grid.
+lvgl:
+  pages:
+    - id: main_page
+      widgets:
+      - container:
+          height: 100%
+          width: 100%
+          widgets:
+            - meter:
+                height: 100%
+                width: 100%
+                # radius: circle
+                text_font: nunito_24
+                outline_width: 2
+                outline_color: black
+                indicator:
+                  opa: TRANSP # get rid of that black dot in the center of the meter
+                scales:
+                    - range_from: 1
+                      range_to: 100
+                      angle_range: 360
+                      rotation: 270
+                      indicators:
+                        - image:
+                            id: tide_level
+                            src: tide_pointer
+                            pivot_x: 44
+                            pivot_y: 44
+                            value: 0
+                      ticks:
+                        count: 0
+                    - range_from: 5
+                      range_to: 1
+                      angle_range: 120
+                      rotation: 300
+                      ticks:
+                        width: 1
+                        count: 5
+                        major:
+                          label_gap: 25
+                          stride: 1
+                          width: 2
+                          length: 20
+                    - range_from: 5
+                      range_to: 1
+                      angle_range: 120
+                      rotation: 120
+                      ticks:
+                        width: 1
+                        count: 5
+                        major:
+                          label_gap: 25
+                          stride: 1
+                          width: 2
+                          length: 20    
+
+            - obj:
+                align: TOP_MID
+                width: 100%
+                height: SIZE_CONTENT
+                bg_opa: TRANSP
+                pad_all: 0
+                layout:
+                  type: flex
+                  flex_flow: COLUMN
+                  flex_align_cross: center
+                  pad_row: 0
+                widgets:
+                  - label:
+                      text_font: nunito_24
+                      text_align: center
+                      width: 100%
+                      text: "High Tide"
+                  - label:
+                      id: high_tide_label
+                      text_font: roboto30_bold
+                      text_align: center
+                      width: 100%
+                      text: "00:00 am"
+            - obj:
+                align: BOTTOM_MID
+                width: 100%
+                height: SIZE_CONTENT
+                bg_opa: TRANSP
+                pad_all: 0
+                layout:
+                  type: flex
+                  flex_flow: COLUMN
+                  flex_align_cross: center
+                  pad_row: 0
+                widgets:
+                  - label:
+                      id: low_tide_label
+                      text_font: roboto30_bold
+                      text_align: center
+                      width: 100%
+                      text: "00:00 am"
+                  - label:
+                      text_font: nunito_24
+                      text_align: center
+                      width: 100%
+                      text: "Low Tide"
+
+                   
