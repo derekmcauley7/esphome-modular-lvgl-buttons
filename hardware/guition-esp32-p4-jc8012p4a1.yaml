@@ -17,24 +17,20 @@ substitutions:
   screen_width: 800
 
 esphome:
-  min_version: 2026.1.0
+  min_version: 2026.3.0
   project:
     name: "Guition.ESP32-P4-JC8012P4A1"
     version: "1.0"
 
 esp32:
-  variant: esp32p4
   board: esp32-p4-evboard
+  variant: esp32p4
   flash_size: 16MB
   cpu_frequency: 360MHz
   framework:
     type: esp-idf
     advanced:
-      enable_idf_experimental_features: true
-
-# Special LVGL settings required for this display
-lvgl:
-  byte_order: little_endian
+      execute_from_psram: true
 
 esp_ldo:
   - channel: 3
@@ -129,6 +125,11 @@ display:
     dimensions:
       width: 800
       height: 1280
+
+# Special LVGL settings required for this display
+lvgl:
+  byte_order: little_endian
+  buffer_size: 100%
 
 # -------------------------------------------
 # Audio - speaker/mic

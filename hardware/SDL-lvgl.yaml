@@ -3,7 +3,7 @@
 ---
 
 esphome:
-  min_version: 2025.10.0
+  min_version: 2026.3.0
 
 host:
   mac_address: "62:23:45:AF:B3:06"

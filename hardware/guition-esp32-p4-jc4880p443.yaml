@@ -9,21 +9,20 @@ substitutions:
   screen_width: 800
 
 esphome:
-  min_version: 2026.1.0
+  min_version: 2026.3.0
   project:
     name: "Guition.ESP32-P4-jc4880p443"
     version: "1.0"
 
 esp32:
   board: esp32-p4-evboard
-  flash_size: 16Mb
+  variant: esp32p4
+  flash_size: 16MB
   cpu_frequency: 360MHz
   framework:
     type: esp-idf
     advanced:
-      enable_idf_experimental_features: true
-    sdkconfig_options:
-      CONFIG_SPIRAM_XIP_FROM_PSRAM: y
+      execute_from_psram: true
 
 esp_ldo:
   - channel: 3
@@ -119,6 +118,7 @@ display:
 # Special LVGL settings required for this display
 lvgl:
   byte_order: little_endian
+  buffer_size: 100%
 
 # -------------------------------------------
 # Audio - speaker/mic

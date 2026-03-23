@@ -9,7 +9,7 @@ substitutions:
   screen_width: 240
 
 esphome:
-  min_version: 2026.1.0
+  min_version: 2026.3.0
   project:
     name: "Sunton.ESP32-2432s028"
     version: "1.0"

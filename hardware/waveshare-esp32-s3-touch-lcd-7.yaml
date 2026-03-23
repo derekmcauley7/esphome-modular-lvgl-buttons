@@ -8,7 +8,7 @@
 ---
 
 esphome:
-  min_version: 2025.10.0
+  min_version: 2026.3.0
   project:
     name: "Waveshare.ESP32-S3-touch-lcd-7"
     version: "1.0"

@@ -10,7 +10,7 @@ substitutions:
   screen_width: 272
 
 esphome:
-  min_version: 2025.12.0
+  min_version: 2026.3.0
   project:
     name: "Guition.ESP32-jc4827w543C"
     version: "1.0"
