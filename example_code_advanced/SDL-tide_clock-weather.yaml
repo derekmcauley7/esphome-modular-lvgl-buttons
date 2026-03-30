@@ -115,11 +115,6 @@ packages:
       weather_entity: weather.home
       weather_summary: sensor.home_hourly_summary
 
-  # Moon phase display
-  moon_phase: !include
-    file: esphome-modular-lvgl-buttons/moon/moon_phase.yaml
-    vars:
-      size: 100
 
 # Styles for Weather forecast
 .forecast_styles:
@@ -262,20 +257,7 @@ lvgl:
                   grid_cell_column_pos: 1
                   grid_cell_x_align: END                  
 
-         - container:
-            grid_cell_x_align: stretch
-            grid_cell_y_align: stretch
-            grid_cell_row_pos: 0
-            grid_cell_column_pos: 6
-            grid_cell_row_span: 1
-            grid_cell_column_span: 1
-            bg_color: 0x000000
-            bg_opa: cover
-            widgets:
-                - image:
-                   src: moon_phase_19_100
-                   id: moon_phase_image
-                   align: center
+
 
          - container:
             grid_cell_x_align: stretch

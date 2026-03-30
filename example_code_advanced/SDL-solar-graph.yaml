@@ -9,8 +9,7 @@ external_components:
 
 substitutions:
   # Envoy serial number
-  envoy_id: '122030047695'
-  # envoy_id: !secret envoy_id
+  envoy_id: !secret envoy_id
   enpower_id: !secret enpower_id
 
   icon_font: mdi_icons_40

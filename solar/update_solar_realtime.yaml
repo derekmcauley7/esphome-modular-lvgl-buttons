@@ -1,0 +1,26 @@
+# You need at add energy_info.yaml to your Home Assistant configuration.yaml
+---
+sensor:
+  - platform: homeassistant
+    id: current_power_consumption
+    entity_id: sensor.envoy_${envoy_id}_current_power_consumption
+    internal: true
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: current_power_consumption_watts
+            text:
+              format: "%.0f"
+              args: ['id(current_power_consumption).state']
+
+  - platform: homeassistant
+    id: current_power_production
+    entity_id: sensor.envoy_${envoy_id}_current_power_production
+    internal: true
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: current_power_production_watts
+            text:
+              format: "%.0f"
+              args: ['id(current_power_production).state']
