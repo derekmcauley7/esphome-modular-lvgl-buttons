@@ -82,6 +82,9 @@ spi:
 display:
   platform: st7701s
   id: my_display
+  reset_pin:
+    pca9554: expander
+    number: 2 # EXIO3 - LCD_RST
   update_interval: never
   auto_clear_enabled: false
   data_rate: 2MHz

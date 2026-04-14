@@ -1,0 +1,75 @@
+---
+# Remote text sensor tile — displays a live string value from a Home Assistant entity.
+# Read-only: no action, no detail page.
+#
+# vars:
+#   uid:          unique identifier
+#   entity_id:    HA entity, e.g. "sensor.washing_machine_status"
+#   attribute:    HA attribute to display instead of state (optional, default: state)
+#   row:          grid row
+#   column:       grid column
+#   text:         sensor name shown on tile
+#   icon:         icon glyph
+#   row_span:     (default: 1)
+#   column_span:  (default: 1)
+#   page_id:      parent page (default: main_page)
+
+globals:
+- id: ${uid}_current_value
+  type: std::string
+  initial_value: '""'
+
+lvgl:
+  pages:
+  - id: !extend ${page_id | default("main_page")}
+    widgets:
+    - container:
+        id: ${uid}_tile
+        grid_cell_row_pos: ${row}
+        grid_cell_column_pos: ${column}
+        grid_cell_row_span: ${row_span | default(1)}
+        grid_cell_column_span: ${column_span | default(1)}
+        grid_cell_x_align: stretch
+        grid_cell_y_align: stretch
+        widgets:
+        - button:
+            id: button_${uid}
+            clickable: false
+            widgets:
+            - label:
+                id: icon_${uid}
+                text_font: $icon_font
+                align: top_left
+                text: ${icon}
+            - label:
+                id: label_${uid}
+                align: bottom_left
+                long_mode: wrap
+                width: 70%
+                text: ${text}
+            - label:
+                id: value_${uid}
+                align: top_right
+                text_font: $text_font
+                text_color: $label_on_color
+                long_mode: dot
+                width: 60%
+                text: "--"
+
+# ── Subscribe to the HA entity state ─────────────────────────────────────────
+text_sensor:
+- platform: homeassistant
+  id: ${uid}_ha_value
+  entity_id: ${entity_id}
+  attribute: ${attribute | default("")}
+  internal: true
+  on_value:
+  - lambda: id(${uid}_current_value) = x;
+  - script.execute: ${uid}_sync_state
+
+script:
+- id: ${uid}_sync_state
+  then:
+  - lvgl.label.update:
+      id: value_${uid}
+      text: !lambda return id(${uid}_current_value);

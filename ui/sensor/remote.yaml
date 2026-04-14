@@ -1,0 +1,81 @@
+---
+# Remote sensor tile — displays a live value from a Home Assistant sensor entity.
+# Read-only: no action scripts, no detail page.
+#
+# vars:
+#   uid:          unique identifier
+#   entity_id:    HA sensor entity, e.g. "sensor.outdoor_temperature"
+#   row:          grid row
+#   column:       grid column
+#   text:         sensor name shown on tile
+#   icon:         icon glyph
+#   unit:         unit string appended to value, e.g. "°C"  (optional, default "")
+#   precision:    decimal places                             (optional, default 1)
+#   row_span:     (default: 1)
+#   column_span:  (default: 1)
+#   page_id:      parent page (default: main_page)
+
+globals:
+- id: ${uid}_current_value
+  type: float
+  initial_value: '0.0'
+
+lvgl:
+  pages:
+  - id: !extend ${page_id | default("main_page")}
+    widgets:
+    - container:
+        id: ${uid}_tile
+        grid_cell_row_pos: ${row}
+        grid_cell_column_pos: ${column}
+        grid_cell_row_span: ${row_span | default(1)}
+        grid_cell_column_span: ${column_span | default(1)}
+        grid_cell_x_align: stretch
+        grid_cell_y_align: stretch
+        widgets:
+        - button:
+            id: button_${uid}
+            clickable: false
+            widgets:
+            - label:
+                id: icon_${uid}
+                text_font: $icon_font
+                align: top_left
+                text_color: $icon_off_color
+                text: ${icon}
+            - label:
+                id: label_${uid}
+                align: bottom_left
+                long_mode: wrap
+                width: 70%
+                text_color: $label_off_color
+                text: ${text}
+            - label:
+                id: value_${uid}
+                align: top_right
+                text_font: $text_font
+                text_color: $label_on_color
+                text: "--"
+
+# ── Subscribe to the HA sensor state ─────────────────────────────────────────
+sensor:
+- platform: homeassistant
+  id: ${uid}_ha_value
+  entity_id: ${entity_id}
+  internal: true
+  on_value:
+  - lambda: id(${uid}_current_value) = x;
+  - script.execute: ${uid}_sync_state
+
+script:
+- id: ${uid}_sync_state
+  then:
+  - lvgl.label.update:
+      id: value_${uid}
+      text: !lambda |-
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%.*f", ${precision | default(1)}, id(${uid}_current_value));
+        std::string s(buf);
+        std::string unit = "${unit | default("")}";
+        if (!unit.empty()) s += " " + unit;
+        return s;

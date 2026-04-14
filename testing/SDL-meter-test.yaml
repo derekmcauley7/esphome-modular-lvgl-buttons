@@ -45,7 +45,7 @@ logger:
 image:
   rgb565:
     alpha_channel:
-      - file: esphome-modular-lvgl-buttons/tides/assets/images/tide_pointer.svg
+      - file: esphome-modular-lvgl-buttons/ui/tides/assets/images/tide_pointer.svg
         id: tide_pointer
         resize: 200x88  # 2.272  - 22x22
 font:

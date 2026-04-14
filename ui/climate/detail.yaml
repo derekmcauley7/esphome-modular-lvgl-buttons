@@ -1,0 +1,885 @@
+---
+# Climate detail page — shared thermostat UI
+# Included automatically by local.yaml and remote.yaml via packages:
+# Never include this file directly.
+#
+# Abstract script contract (implemented by local.yaml / remote.yaml):
+#   ${uid}_climate_set_mode_off
+#   ${uid}_climate_set_mode_heat
+#   ${uid}_climate_set_mode_cool
+#   ${uid}_climate_set_mode_heat_cool
+#   ${uid}_climate_set_mode_fan_only
+#   ${uid}_climate_set_mode_dry
+#   ${uid}_climate_set_fan_auto
+#   ${uid}_climate_set_fan_low
+#   ${uid}_climate_set_fan_medium
+#   ${uid}_climate_set_fan_high
+#   ${uid}_climate_set_swing_off
+#   ${uid}_climate_set_swing_both
+#   ${uid}_climate_set_swing_vertical
+#   ${uid}_climate_set_swing_horizontal
+#   ${uid}_climate_set_target_temp   — applies ${uid}_target_temp
+#
+# Globals (written by local/remote before calling ${uid}_sync_state):
+#   ${uid}_target_temp       float   single setpoint °C
+#   ${uid}_target_temp_low   float   heat setpoint in heat_cool mode
+#   ${uid}_target_temp_high  float   cool setpoint in heat_cool mode
+#   ${uid}_current_temp      float   measured temperature °C
+#   ${uid}_mode              int     0=off 1=heat 2=cool 3=heat_cool 4=fan_only 5=dry
+#   ${uid}_action            int     0=idle 1=heating 2=cooling 3=fan 4=drying
+#   ${uid}_fan_mode          int     0=auto 1=low 2=medium 3=high
+#   ${uid}_swing_mode        int     0=off 1=both 2=vertical 3=horizontal
+
+globals:
+- id: ${uid}_target_temp
+  type: float
+  initial_value: '20.0'
+- id: ${uid}_target_temp_low
+  type: float
+  initial_value: '18.0'
+- id: ${uid}_target_temp_high
+  type: float
+  initial_value: '24.0'
+- id: ${uid}_current_temp
+  type: float
+  initial_value: '0.0'
+- id: ${uid}_mode
+  type: int
+  initial_value: '0'
+- id: ${uid}_action
+  type: int
+  initial_value: '0'
+- id: ${uid}_fan_mode
+  type: int
+  initial_value: '0'
+- id: ${uid}_swing_mode
+  type: int
+  initial_value: '0'
+- id: ${uid}_dual_setpoint
+  type: bool
+  initial_value: 'false'
+
+lvgl:
+  pages:
+  - id: ${uid}_climate_page
+    styles: page_style
+    scrollable: false
+    scrollbar_mode: "OFF"
+    widgets:
+
+    # ── MAIN ARC ──────────────────────────────────────────────────────────
+    - arc:
+        id: ${uid}_arc
+        align: CENTER
+        y: 0
+        adjustable: true
+        clickable: false
+        mode: NORMAL
+        value: 200
+        min_value: 100
+        max_value: 350
+        width: 90%
+        height: 90%
+        arc_width: 30
+        arc_color: very_dark_gray
+        indicator:
+          arc_color: very_dark_gray
+          arc_width: 30
+        knob:
+          bg_color: white
+          bg_opa: transp
+        on_value:
+          then:
+          - if:
+              condition:
+                lambda: 'return id(${uid}_target_temp) != (float)x / 10.0f;'
+              then:
+              - lambda: 'id(${uid}_target_temp) = (float)x / 10.0f;'
+              - lvgl.label.update:
+                  id: ${uid}_target_label
+                  text: !lambda |-
+                    char buf[16];
+                    snprintf(buf, sizeof(buf), "%.1f°", id(${uid}_target_temp));
+                    return std::string(buf);
+              - script.execute: ${uid}_arc_send_temp
+
+    # ── MODE STATUS LABEL ─────────────────────────────────────────────────
+    - label:
+        id: ${uid}_mode_label
+        align: CENTER
+        y: -90
+        text_font: nunito_20
+        text: " "
+        text_color: gray
+
+    # ── TARGET TEMPERATURE ────────────────────────────────────────────────
+    - label:
+        id: ${uid}_target_label
+        align: CENTER
+        y: -20
+        text_font: nunito_72
+        text: "OFF"
+        text_color: white
+
+    # ── CURRENT TEMPERATURE ───────────────────────────────────────────────
+    - label:
+        id: ${uid}_current_label
+        align: CENTER
+        y: 60
+        text_font: nunito_24
+        text: "--.-°"
+        text_color: misty_blue
+
+    # ── TOP LEFT — SWING ──────────────────────────────────────────────────
+    - button:
+        id: ${uid}_swing_corner_btn
+        hidden: true
+        align: TOP_LEFT
+        x: 10
+        y: 10
+        width: 60
+        height: 60
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        radius: 30
+        widgets:
+        - label:
+            id: ${uid}_swing_corner_icon
+            align: CENTER
+            text_font: $icon_font
+            text_color: gray
+            text: $mdi_arrow_oscillating
+        on_click:
+          then:
+          - lvgl.widget.hide: ${uid}_content
+          - lvgl.widget.show: ${uid}_dismiss_overlay
+          - lvgl.widget.show: ${uid}_swing_dropdown
+
+    # ── TOP RIGHT — BACK ──────────────────────────────────────────────────
+    - button:
+        id: ${uid}_back_corner_btn
+        align: TOP_RIGHT
+        x: -10
+        y: 10
+        width: 60
+        height: 60
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        radius: 30
+        widgets:
+        - label:
+            align: CENTER
+            text_font: $icon_font
+            text_color: steel_blue
+            text: $mdi_chevron_left
+        on_click:
+        - lvgl.widget.hide: ${uid}_mode_dropdown
+        - lvgl.widget.hide: ${uid}_fan_dropdown
+        - lvgl.widget.hide: ${uid}_swing_dropdown
+        - lvgl.widget.hide: ${uid}_dismiss_overlay
+        - lvgl.widget.show: ${uid}_content
+        - lvgl.page.show:
+            id: ${page_id | default("main_page")}
+            animation: OUT_RIGHT
+            time: 300ms
+
+    # ── BOTTOM LEFT — MODE ────────────────────────────────────────────────
+    - button:
+        id: ${uid}_mode_corner_btn
+        align: BOTTOM_LEFT
+        x: 10
+        y: -10
+        width: 60
+        height: 60
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        radius: 30
+        widgets:
+        - label:
+            id: ${uid}_mode_corner_icon
+            align: CENTER
+            text_font: $icon_font
+            text_color: gray
+            text: $mdi_thermostat
+        on_click:
+          then:
+          - lvgl.widget.hide: ${uid}_content
+          - lvgl.widget.show: ${uid}_dismiss_overlay
+          - lvgl.widget.show: ${uid}_mode_dropdown
+
+    # ── BOTTOM RIGHT — FAN ────────────────────────────────────────────────
+    - button:
+        id: ${uid}_fan_corner_btn
+        hidden: true
+        align: BOTTOM_RIGHT
+        x: -10
+        y: -10
+        width: 60
+        height: 60
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        radius: 30
+        widgets:
+        - label:
+            id: ${uid}_fan_corner_icon
+            align: CENTER
+            text_font: $icon_font
+            text_color: misty_blue
+            text: $mdi_fan
+        on_click:
+          then:
+          - lvgl.widget.hide: ${uid}_content
+          - lvgl.widget.show: ${uid}_dismiss_overlay
+          - lvgl.widget.show: ${uid}_fan_dropdown
+
+    # ── CONTENT GROUP ─────────────────────────────────────────────────────
+    - obj:
+        id: ${uid}_content
+        align: CENTER
+        y: 0
+        width: 400
+        height: 400
+        bg_opa: transp
+        border_width: 0
+        clickable: false
+
+    # ── DISMISS OVERLAY ───────────────────────────────────────────────────
+    - obj:
+        id: ${uid}_dismiss_overlay
+        hidden: true
+        x: 0
+        y: 0
+        width: $screen_width
+        height: $screen_height
+        bg_color: black
+        bg_opa: 70%
+        border_width: 0
+        radius: 0
+        on_click:
+          then:
+          - lvgl.widget.hide: ${uid}_mode_dropdown
+          - lvgl.widget.hide: ${uid}_fan_dropdown
+          - lvgl.widget.hide: ${uid}_swing_dropdown
+          - lvgl.widget.hide: ${uid}_dismiss_overlay
+          - lvgl.widget.show: ${uid}_content
+
+    # ── MODE DROPDOWN — all buttons hidden by default, shown at runtime ───
+    - obj:
+        id: ${uid}_mode_dropdown
+        hidden: true
+        align: CENTER
+        y: 0
+        width: 200
+        height: 390
+        bg_color: gray800
+        radius: 20
+        border_width: 0
+        shadow_width: 0
+        pad_all: 8
+        layout:
+          type: FLEX
+          flex_flow: COLUMN
+          flex_align_main: SPACE_EVENLY
+          flex_align_cross: CENTER
+        widgets:
+        - button:
+            id: ${uid}_btn_mode_off
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "OFF"
+                text_color: gray
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_mode_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_mode_off
+        - button:
+            id: ${uid}_btn_mode_heat
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "HEAT"
+                text_color: ep_orange
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_mode_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_mode_heat
+        - button:
+            id: ${uid}_btn_mode_cool
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "COOL"
+                text_color: ep_blue
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_mode_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_mode_cool
+        - button:
+            id: ${uid}_btn_mode_heat_cool
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "AUTO"
+                text_color: misty_blue
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_mode_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_mode_heat_cool
+        - button:
+            id: ${uid}_btn_mode_fan_only
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "FAN"
+                text_color: ep_green
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_mode_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_mode_fan_only
+        - button:
+            id: ${uid}_btn_mode_dry
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "DRY"
+                text_color: yellow
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_mode_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_mode_dry
+
+    # ── FAN DROPDOWN — all buttons hidden by default, shown at runtime ────
+    - obj:
+        id: ${uid}_fan_dropdown
+        hidden: true
+        align: CENTER
+        y: 0
+        width: 200
+        height: 262
+        bg_color: gray800
+        radius: 20
+        border_width: 0
+        shadow_width: 0
+        pad_all: 8
+        layout:
+          type: FLEX
+          flex_flow: COLUMN
+          flex_align_main: SPACE_EVENLY
+          flex_align_cross: CENTER
+        widgets:
+        - button:
+            id: ${uid}_btn_fan_auto
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "AUTO"
+                text_color: misty_blue
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_fan_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_fan_auto
+        - button:
+            id: ${uid}_btn_fan_low
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "LOW"
+                text_color: ep_green
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_fan_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_fan_low
+        - button:
+            id: ${uid}_btn_fan_medium
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "MED"
+                text_color: yellow
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_fan_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_fan_medium
+        - button:
+            id: ${uid}_btn_fan_high
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "HIGH"
+                text_color: ep_orange
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_fan_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_fan_high
+
+    # ── SWING DROPDOWN — all buttons hidden by default, shown at runtime ──
+    - obj:
+        id: ${uid}_swing_dropdown
+        hidden: true
+        align: CENTER
+        y: 0
+        width: 200
+        height: 262
+        bg_color: gray800
+        radius: 20
+        border_width: 0
+        shadow_width: 0
+        pad_all: 8
+        layout:
+          type: FLEX
+          flex_flow: COLUMN
+          flex_align_main: SPACE_EVENLY
+          flex_align_cross: CENTER
+        widgets:
+        - button:
+            id: ${uid}_btn_swing_off
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "OFF"
+                text_color: gray
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_swing_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_swing_off
+        - button:
+            id: ${uid}_btn_swing_both
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "BOTH"
+                text_color: misty_blue
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_swing_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_swing_both
+        - button:
+            id: ${uid}_btn_swing_vertical
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "VERT"
+                text_color: ep_green
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_swing_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_swing_vertical
+        - button:
+            id: ${uid}_btn_swing_horizontal
+            hidden: true
+            width: 180
+            height: 52
+            bg_color: gray900
+            radius: 12
+            shadow_width: 0
+            border_width: 0
+            widgets:
+            - label:
+                align: CENTER
+                text: "HORIZ"
+                text_color: ep_blue
+            on_click:
+              then:
+              - lvgl.widget.hide: ${uid}_swing_dropdown
+              - lvgl.widget.hide: ${uid}_dismiss_overlay
+              - lvgl.widget.show: ${uid}_content
+              - script.execute: ${uid}_climate_set_swing_horizontal
+
+script:
+# ── Debounce arc drag — sends command 500 ms after last on_value ──────────────
+- id: ${uid}_arc_send_temp
+  mode: restart
+  then:
+  - delay: 500ms
+  - script.execute: ${uid}_climate_set_target_temp
+
+# ── Sync all globals → LVGL ───────────────────────────────────────────────────
+- id: ${uid}_sync_state
+  then:
+  # Current temperature
+  - lvgl.label.update:
+      id: ${uid}_current_label
+      text: !lambda |-
+        if (id(${uid}_current_temp) == 0.0f) return std::string("--.-°");
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%.1f°", id(${uid}_current_temp));
+        return std::string(buf);
+
+  # Tile target temp label — low/high for heat_cool, single otherwise
+  - lvgl.label.update:
+      id: temp_${uid}
+      text: !lambda |-
+        char buf[24];
+        if (id(${uid}_mode) == 3) {
+          snprintf(buf, sizeof(buf), "%.0f°-%.0f°",
+            id(${uid}_target_temp_low), id(${uid}_target_temp_high));
+        } else if (id(${uid}_mode) == 0) {
+          return std::string("OFF");
+        } else {
+          snprintf(buf, sizeof(buf), "%.1f°", id(${uid}_target_temp));
+        }
+        return std::string(buf);
+
+  # Arc and labels per mode
+  - if:
+      condition:
+        lambda: return id(${uid}_mode) == 1;  # HEAT
+      then:
+      - lvgl.arc.update:
+          id: ${uid}_arc
+          value: !lambda return (int)(id(${uid}_target_temp) * 10);
+          indicator:
+            arc_color: ep_orange
+      - lvgl.widget.update:
+          id: ${uid}_arc
+          clickable: true
+          knob:
+            bg_opa: cover
+            bg_color: white
+      - lvgl.widget.show: ${uid}_target_label
+      - lvgl.label.update:
+          id: ${uid}_target_label
+          text: !lambda |-
+            char buf[16]; snprintf(buf, sizeof(buf), "%.1f°", id(${uid}_target_temp));
+            return std::string(buf);
+      - lvgl.widget.update:
+          id: ${uid}_mode_corner_icon
+          text_color: ep_orange
+      - lvgl.label.update:
+          id: ${uid}_mode_label
+          text: !lambda |-
+            return id(${uid}_action) == 1 ? std::string("HEATING") : std::string("IDLE");
+          text_color: !lambda |-
+            return id(${uid}_action) == 1 ? lv_color_hex(0xFF6600) : lv_color_hex(0x808080);
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_on_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_on_color
+
+  - if:
+      condition:
+        lambda: return id(${uid}_mode) == 2;  # COOL
+      then:
+      - lvgl.arc.update:
+          id: ${uid}_arc
+          value: !lambda return (int)(id(${uid}_target_temp) * 10);
+          indicator:
+            arc_color: ep_blue
+      - lvgl.widget.update:
+          id: ${uid}_arc
+          clickable: true
+          knob:
+            bg_opa: cover
+            bg_color: white
+      - lvgl.widget.show: ${uid}_target_label
+      - lvgl.label.update:
+          id: ${uid}_target_label
+          text: !lambda |-
+            char buf[16]; snprintf(buf, sizeof(buf), "%.1f°", id(${uid}_target_temp));
+            return std::string(buf);
+      - lvgl.widget.update:
+          id: ${uid}_mode_corner_icon
+          text_color: ep_blue
+      - lvgl.label.update:
+          id: ${uid}_mode_label
+          text: !lambda |-
+            return id(${uid}_action) == 2 ? std::string("COOLING") : std::string("IDLE");
+          text_color: !lambda |-
+            return id(${uid}_action) == 2 ? lv_color_hex(0x0066FF) : lv_color_hex(0x808080);
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_on_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_on_color
+
+  - if:
+      condition:
+        lambda: return id(${uid}_mode) == 3;  # HEAT_COOL
+      then:
+      - lvgl.arc.update:
+          id: ${uid}_arc
+          indicator:
+            arc_color: misty_blue
+      - lvgl.widget.update:
+          id: ${uid}_arc
+          clickable: false
+          knob:
+            bg_opa: transp
+      - lvgl.widget.show: ${uid}_target_label
+      - lvgl.label.update:
+          id: ${uid}_target_label
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%.0f°-%.0f°",
+              id(${uid}_target_temp_low), id(${uid}_target_temp_high));
+            return std::string(buf);
+      - lvgl.widget.update:
+          id: ${uid}_mode_corner_icon
+          text_color: misty_blue
+      - lvgl.label.update:
+          id: ${uid}_mode_label
+          text: "AUTO"
+          text_color: misty_blue
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_on_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_on_color
+
+  - if:
+      condition:
+        lambda: return id(${uid}_mode) == 4;  # FAN_ONLY
+      then:
+      - lvgl.arc.update:
+          id: ${uid}_arc
+          indicator:
+            arc_color: ep_green
+      - lvgl.widget.update:
+          id: ${uid}_arc
+          clickable: false
+          knob:
+            bg_opa: transp
+      - lvgl.widget.hide: ${uid}_target_label
+      - lvgl.widget.update:
+          id: ${uid}_mode_corner_icon
+          text_color: ep_green
+      - lvgl.label.update:
+          id: ${uid}_mode_label
+          text: "FAN"
+          text_color: ep_green
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_on_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_on_color
+
+  - if:
+      condition:
+        lambda: return id(${uid}_mode) == 5;  # DRY
+      then:
+      - lvgl.arc.update:
+          id: ${uid}_arc
+          indicator:
+            arc_color: yellow
+      - lvgl.widget.update:
+          id: ${uid}_arc
+          clickable: false
+          knob:
+            bg_opa: transp
+      - lvgl.widget.hide: ${uid}_target_label
+      - lvgl.widget.update:
+          id: ${uid}_mode_corner_icon
+          text_color: yellow
+      - lvgl.label.update:
+          id: ${uid}_mode_label
+          text: "DRY"
+          text_color: yellow
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_on_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_on_color
+
+  - if:
+      condition:
+        lambda: return id(${uid}_mode) == 0;  # OFF
+      then:
+      - lvgl.arc.update:
+          id: ${uid}_arc
+          indicator:
+            arc_color: very_dark_gray
+      - lvgl.widget.update:
+          id: ${uid}_arc
+          clickable: false
+          knob:
+            bg_opa: transp
+      - lvgl.widget.show: ${uid}_target_label
+      - lvgl.label.update:
+          id: ${uid}_target_label
+          text: "OFF"
+      - lvgl.label.update:
+          id: ${uid}_mode_label
+          text: " "
+          text_color: gray
+      - lvgl.widget.update:
+          id: ${uid}_mode_corner_icon
+          text_color: gray
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_off_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_off_color
+
+  # Fan icon color
+  - if:
+      condition:
+        lambda: return id(${uid}_fan_mode) == 0;
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_fan_corner_icon
+          text_color: misty_blue
+  - if:
+      condition:
+        lambda: return id(${uid}_fan_mode) == 1;
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_fan_corner_icon
+          text_color: ep_green
+  - if:
+      condition:
+        lambda: return id(${uid}_fan_mode) == 2;
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_fan_corner_icon
+          text_color: yellow
+  - if:
+      condition:
+        lambda: return id(${uid}_fan_mode) == 3;
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_fan_corner_icon
+          text_color: ep_orange
+
+  # Swing icon color
+  - if:
+      condition:
+        lambda: return id(${uid}_swing_mode) == 0;
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_swing_corner_icon
+          text_color: gray
+  - if:
+      condition:
+        lambda: 'return id(${uid}_swing_mode) > 0;'
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_swing_corner_icon
+          text_color: misty_blue

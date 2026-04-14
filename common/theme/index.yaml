@@ -1,0 +1,21 @@
+---
+# Theme bundle — include this once instead of the four files individually.
+# Pulls in colors, fonts, MDI glyph substitutions and LVGL theme/style.
+# All substitutions have sensible defaults — override in your device YAML.
+
+substitutions:
+  icon_font:        mdi_icons_40
+  text_font:        nunito_20
+  button_on_color:  ep_orange
+  button_off_color: very_dark_gray
+  icon_on_color:    yellow
+  icon_off_color:   gray
+  label_on_color:   white
+  label_off_color:  gray
+  button_text_color: white
+
+packages:
+  colors: !include color.yaml
+  fonts:  !include fonts.yaml
+  glyphs: !include mdi_glyph_substitutions.yaml
+  style:  !include theme_style.yaml

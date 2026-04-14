@@ -99,6 +99,12 @@ lvgl:
                 y: -30
                 align: bottom_mid
                 src: esphome_img
+esphome:
+  on_boot:
+  - priority: 400
+    then:
+    - script.execute: update_loading_page
+
 script:
   - id: update_loading_page
     then:
@@ -143,6 +149,8 @@ script:
           }
 
 api:
+  encryption:
+    key: !secret api_encryption_key
   on_client_connected:
     - if:
         condition:

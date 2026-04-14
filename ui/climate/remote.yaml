@@ -1,0 +1,426 @@
+---
+# Remote climate tile — controls a Home Assistant climate entity.
+# Supported modes, fan speeds and swing modes are detected at runtime from HA attributes.
+# Short-click opens the detail page.
+#
+# vars:
+#   uid:          unique identifier
+#   entity_id:    HA climate entity, e.g. "climate.living_room"
+#   row:          grid row
+#   column:       grid column
+#   text:         tile label
+#   icon:         icon glyph (required — e.g. $mdi_thermostat)
+#   min_temp:     arc minimum × 10  (default: 100 = 10.0°C)
+#   max_temp:     arc maximum × 10  (default: 350 = 35.0°C)
+#   row_span:     (default: 1)
+#   column_span:  (default: 1)
+#   page_id:      parent page (default: main_page)
+
+packages:
+  ${uid}_detail: !include
+    file: detail.yaml
+    vars:
+      uid: ${uid}
+      text: ${text}
+      page_id: ${page_id | default("main_page")}
+
+lvgl:
+  pages:
+  - id: !extend ${page_id | default("main_page")}
+    widgets:
+    - container:
+        id: ${uid}_tile
+        grid_cell_row_pos: ${row}
+        grid_cell_column_pos: ${column}
+        grid_cell_row_span: ${row_span | default(1)}
+        grid_cell_column_span: ${column_span | default(1)}
+        grid_cell_x_align: stretch
+        grid_cell_y_align: stretch
+        widgets:
+        - button:
+            id: button_${uid}
+            widgets:
+            - label:
+                id: icon_${uid}
+                text_font: $icon_font
+                align: top_left
+                text: ${icon}
+            - label:
+                id: label_${uid}
+                align: bottom_left
+                long_mode: wrap
+                width: 70%
+                text: ${text}
+            - label:
+                id: temp_${uid}
+                align: top_right
+                text_font: $text_font
+                text_color: $label_on_color
+                text: "--°"
+            on_short_click:
+              then:
+              - lvgl.page.show:
+                  id: ${uid}_climate_page
+                  animation: MOVE_LEFT
+                  time: 300ms
+
+# ── HA state sensors ──────────────────────────────────────────────────────────
+
+text_sensor:
+
+# hvac_mode state (off / heat / cool / heat_cool / fan_only / dry)
+- platform: homeassistant
+  id: ${uid}_ha_mode
+  entity_id: ${entity_id}
+  internal: true
+  on_value:
+  - lambda: |-
+      if      (x == "heat")      id(${uid}_mode) = 1;
+      else if (x == "cool")      id(${uid}_mode) = 2;
+      else if (x == "heat_cool") id(${uid}_mode) = 3;
+      else if (x == "fan_only")  id(${uid}_mode) = 4;
+      else if (x == "dry")       id(${uid}_mode) = 5;
+      else                       id(${uid}_mode) = 0;
+  - script.execute: ${uid}_sync_state
+
+# hvac_action attribute (heating / cooling / idle / off / fan / drying)
+- platform: homeassistant
+  id: ${uid}_ha_action
+  entity_id: ${entity_id}
+  attribute: hvac_action
+  internal: true
+  on_value:
+  - lambda: |-
+      if      (x == "heating") id(${uid}_action) = 1;
+      else if (x == "cooling") id(${uid}_action) = 2;
+      else if (x == "fan")     id(${uid}_action) = 3;
+      else if (x == "drying")  id(${uid}_action) = 4;
+      else                     id(${uid}_action) = 0;
+  - script.execute: ${uid}_sync_state
+
+# target temperature (single setpoint)
+- platform: homeassistant
+  id: ${uid}_ha_target_temp
+  entity_id: ${entity_id}
+  attribute: temperature
+  internal: true
+  on_value:
+  - if:
+      condition:
+        lambda: return !x.empty() && x != "None" && !id(${uid}_arc_send_temp)->is_running();
+      then:
+      - lambda: id(${uid}_target_temp) = atof(x.c_str());
+      - script.execute: ${uid}_sync_state
+
+# target_temp_low (heat setpoint — used in heat_cool mode, and fallback for heat mode)
+- platform: homeassistant
+  id: ${uid}_ha_target_temp_low
+  entity_id: ${entity_id}
+  attribute: target_temp_low
+  internal: true
+  on_value:
+  - if:
+      condition:
+        lambda: return !x.empty() && x != "None";
+      then:
+      - lambda: |-
+          id(${uid}_dual_setpoint) = true;
+          id(${uid}_target_temp_low) = atof(x.c_str());
+          if (id(${uid}_mode) == 1 && !id(${uid}_arc_send_temp)->is_running())
+            id(${uid}_target_temp) = id(${uid}_target_temp_low);
+      - script.execute: ${uid}_sync_state
+
+# target_temp_high (cool setpoint — used in heat_cool mode, and fallback for cool mode)
+- platform: homeassistant
+  id: ${uid}_ha_target_temp_high
+  entity_id: ${entity_id}
+  attribute: target_temp_high
+  internal: true
+  on_value:
+  - if:
+      condition:
+        lambda: return !x.empty() && x != "None";
+      then:
+      - lambda: |-
+          id(${uid}_dual_setpoint) = true;
+          id(${uid}_target_temp_high) = atof(x.c_str());
+          if (id(${uid}_mode) == 2 && !id(${uid}_arc_send_temp)->is_running())
+            id(${uid}_target_temp) = id(${uid}_target_temp_high);
+      - script.execute: ${uid}_sync_state
+
+# current temperature
+- platform: homeassistant
+  id: ${uid}_ha_current_temp
+  entity_id: ${entity_id}
+  attribute: current_temperature
+  internal: true
+  on_value:
+  - if:
+      condition:
+        lambda: return !x.empty() && x != "None";
+      then:
+      - lambda: id(${uid}_current_temp) = atof(x.c_str());
+      - script.execute: ${uid}_sync_state
+
+# fan_mode (auto / low / medium / high)
+- platform: homeassistant
+  id: ${uid}_ha_fan_mode
+  entity_id: ${entity_id}
+  attribute: fan_mode
+  internal: true
+  on_value:
+  - lambda: |-
+      if      (x == "auto")                      id(${uid}_fan_mode) = 0;
+      else if (x == "low")                       id(${uid}_fan_mode) = 1;
+      else if (x == "medium" || x == "mid")      id(${uid}_fan_mode) = 2;
+      else if (x == "high")                      id(${uid}_fan_mode) = 3;
+  - script.execute: ${uid}_sync_state
+
+# swing_mode (off / both / vertical / horizontal)
+- platform: homeassistant
+  id: ${uid}_ha_swing_mode
+  entity_id: ${entity_id}
+  attribute: swing_mode
+  internal: true
+  on_value:
+  - lambda: |-
+      if      (x == "off")        id(${uid}_swing_mode) = 0;
+      else if (x == "both")       id(${uid}_swing_mode) = 1;
+      else if (x == "vertical")   id(${uid}_swing_mode) = 2;
+      else if (x == "horizontal") id(${uid}_swing_mode) = 3;
+  - script.execute: ${uid}_sync_state
+
+# min_temp / max_temp — update arc range at runtime
+- platform: homeassistant
+  id: ${uid}_ha_min_temp
+  entity_id: ${entity_id}
+  attribute: min_temp
+  internal: true
+  on_value:
+  - if:
+      condition:
+        lambda: return !x.empty() && x != "None";
+      then:
+      - lvgl.arc.update:
+          id: ${uid}_arc
+          min_value: !lambda return (int)(atof(x.c_str()) * 10);
+
+- platform: homeassistant
+  id: ${uid}_ha_max_temp
+  entity_id: ${entity_id}
+  attribute: max_temp
+  internal: true
+  on_value:
+  - if:
+      condition:
+        lambda: return !x.empty() && x != "None";
+      then:
+      - lvgl.arc.update:
+          id: ${uid}_arc
+          max_value: !lambda return (int)(atof(x.c_str()) * 10);
+
+# hvac_modes — detect supported modes and show/hide buttons
+- platform: homeassistant
+  id: ${uid}_ha_hvac_modes
+  entity_id: ${entity_id}
+  attribute: hvac_modes
+  internal: true
+  on_value:
+  - lambda: |-
+      auto show_hide = [](lv_obj_t* obj, bool hide) {
+        if (hide) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        else      lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+      };
+      bool has_heat_cool = x.find("heat_cool") != std::string::npos;
+      show_hide(id(${uid}_btn_mode_heat),      x.find("heat") == std::string::npos && !has_heat_cool);
+      show_hide(id(${uid}_btn_mode_cool),      x.find("cool") == std::string::npos && !has_heat_cool);
+      show_hide(id(${uid}_btn_mode_heat_cool), !has_heat_cool);
+      show_hide(id(${uid}_btn_mode_fan_only),  x.find("fan_only") == std::string::npos);
+      show_hide(id(${uid}_btn_mode_dry),       x.find("dry") == std::string::npos);
+
+# fan_modes — detect supported fan speeds and show/hide buttons
+- platform: homeassistant
+  id: ${uid}_ha_fan_modes
+  entity_id: ${entity_id}
+  attribute: fan_modes
+  internal: true
+  on_value:
+  - lambda: |-
+      auto show_hide = [](lv_obj_t* obj, bool hide) {
+        if (hide) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        else      lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+      };
+      bool has_fan = !x.empty() && x != "None";
+      show_hide(id(${uid}_fan_corner_btn), !has_fan);
+      if (has_fan) {
+        show_hide(id(${uid}_btn_fan_auto),   x.find("auto") == std::string::npos);
+        show_hide(id(${uid}_btn_fan_low),    x.find("low") == std::string::npos);
+        show_hide(id(${uid}_btn_fan_medium), x.find("medium") == std::string::npos &&
+                                             x.find("mid") == std::string::npos);
+        show_hide(id(${uid}_btn_fan_high),   x.find("high") == std::string::npos);
+      }
+
+# swing_modes — detect supported swing modes and show/hide buttons
+- platform: homeassistant
+  id: ${uid}_ha_swing_modes
+  entity_id: ${entity_id}
+  attribute: swing_modes
+  internal: true
+  on_value:
+  - lambda: |-
+      auto show_hide = [](lv_obj_t* obj, bool hide) {
+        if (hide) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        else      lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+      };
+      bool has_swing = !x.empty() && x != "None";
+      show_hide(id(${uid}_swing_corner_btn),    !has_swing);
+      if (has_swing) {
+        show_hide(id(${uid}_btn_swing_off),        x.find("off") == std::string::npos);
+        show_hide(id(${uid}_btn_swing_both),       x.find("both") == std::string::npos);
+        show_hide(id(${uid}_btn_swing_vertical),   x.find("vertical") == std::string::npos);
+        show_hide(id(${uid}_btn_swing_horizontal), x.find("horizontal") == std::string::npos);
+      }
+
+script:
+# ── Abstract action scripts — REMOTE implementation ───────────────────────────
+- id: ${uid}_climate_set_mode_off
+  then:
+  - homeassistant.action:
+      action: climate.set_hvac_mode
+      data:
+        entity_id: ${entity_id}
+        hvac_mode: "off"
+
+- id: ${uid}_climate_set_mode_heat
+  then:
+  - homeassistant.action:
+      action: climate.set_hvac_mode
+      data:
+        entity_id: ${entity_id}
+        hvac_mode: "heat"
+
+- id: ${uid}_climate_set_mode_cool
+  then:
+  - homeassistant.action:
+      action: climate.set_hvac_mode
+      data:
+        entity_id: ${entity_id}
+        hvac_mode: "cool"
+
+- id: ${uid}_climate_set_mode_heat_cool
+  then:
+  - homeassistant.action:
+      action: climate.set_hvac_mode
+      data:
+        entity_id: ${entity_id}
+        hvac_mode: "heat_cool"
+
+- id: ${uid}_climate_set_mode_fan_only
+  then:
+  - homeassistant.action:
+      action: climate.set_hvac_mode
+      data:
+        entity_id: ${entity_id}
+        hvac_mode: "fan_only"
+
+- id: ${uid}_climate_set_mode_dry
+  then:
+  - homeassistant.action:
+      action: climate.set_hvac_mode
+      data:
+        entity_id: ${entity_id}
+        hvac_mode: "dry"
+
+- id: ${uid}_climate_set_target_temp
+  then:
+  - if:
+      condition:
+        lambda: return id(${uid}_dual_setpoint) && id(${uid}_mode) == 1;
+      then:
+      - homeassistant.action:
+          action: climate.set_temperature
+          data:
+            entity_id: ${entity_id}
+            target_temp_low: !lambda return id(${uid}_target_temp);
+  - if:
+      condition:
+        lambda: return id(${uid}_dual_setpoint) && id(${uid}_mode) == 2;
+      then:
+      - homeassistant.action:
+          action: climate.set_temperature
+          data:
+            entity_id: ${entity_id}
+            target_temp_high: !lambda return id(${uid}_target_temp);
+  - if:
+      condition:
+        lambda: return !id(${uid}_dual_setpoint);
+      then:
+      - homeassistant.action:
+          action: climate.set_temperature
+          data:
+            entity_id: ${entity_id}
+            temperature: !lambda return id(${uid}_target_temp);
+
+- id: ${uid}_climate_set_fan_auto
+  then:
+  - homeassistant.action:
+      action: climate.set_fan_mode
+      data:
+        entity_id: ${entity_id}
+        fan_mode: "auto"
+
+- id: ${uid}_climate_set_fan_low
+  then:
+  - homeassistant.action:
+      action: climate.set_fan_mode
+      data:
+        entity_id: ${entity_id}
+        fan_mode: "low"
+
+- id: ${uid}_climate_set_fan_medium
+  then:
+  - homeassistant.action:
+      action: climate.set_fan_mode
+      data:
+        entity_id: ${entity_id}
+        fan_mode: "medium"
+
+- id: ${uid}_climate_set_fan_high
+  then:
+  - homeassistant.action:
+      action: climate.set_fan_mode
+      data:
+        entity_id: ${entity_id}
+        fan_mode: "high"
+
+- id: ${uid}_climate_set_swing_off
+  then:
+  - homeassistant.action:
+      action: climate.set_swing_mode
+      data:
+        entity_id: ${entity_id}
+        swing_mode: "off"
+
+- id: ${uid}_climate_set_swing_both
+  then:
+  - homeassistant.action:
+      action: climate.set_swing_mode
+      data:
+        entity_id: ${entity_id}
+        swing_mode: "both"
+
+- id: ${uid}_climate_set_swing_vertical
+  then:
+  - homeassistant.action:
+      action: climate.set_swing_mode
+      data:
+        entity_id: ${entity_id}
+        swing_mode: "vertical"
+
+- id: ${uid}_climate_set_swing_horizontal
+  then:
+  - homeassistant.action:
+      action: climate.set_swing_mode
+      data:
+        entity_id: ${entity_id}
+        swing_mode: "horizontal"

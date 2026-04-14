@@ -1,0 +1,263 @@
+substitutions:
+  # Screen Size
+  screen_height: '480'
+  screen_width: '480'
+  
+  icon_font: mdi_icons_40
+  text_font: nunito_20
+  text_color: white
+  bg_color: black
+  button_on_color: "ep_orange"
+  button_off_color: "very_dark_gray"
+  icon_on_color: "yellow"
+  icon_off_color: "gray"
+  label_on_color: "white"
+  label_off_color: "gray"
+  button_text_color: "white"
+  
+packages:
+  # Generic configuration for ESP32 screens
+  # All the colors
+  theme:  !include esphome-modular-lvgl-buttons/common/theme/index.yaml
+  # Fonts you need
+  # 1000s of glyphs
+  # Some basic sensors
+  # theme:  !include esphome-modular-lvgl-buttons/common/theme/index_debug.yaml  # uncomment to enable debug outlines  
+
+# Weather packages
+  # Display weather forecast using direct HA action (no template sensor needed!)
+  # Icons are included automatically in the action file
+  weather_forecast_100: !include
+    file: esphome-modular-lvgl-buttons/ui/weather/forecast.yaml
+    vars:
+      size: 100
+      weather_entity: weather.home
+  # Get todays weather and display it (icons included automatically)
+  weather_today_200: !include
+    file: esphome-modular-lvgl-buttons/ui/weather/today.yaml
+    vars:
+      size: 200
+      weather_entity: weather.home
+      weather_summary: sensor.home_hourly_summary
+
+
+esphome:
+  name: weather
+
+api:
+
+logger:
+  level: debug
+
+time:
+  - platform: homeassistant
+    id: system_time
+
+host:
+  mac_address: "62:23:45:AF:B3:06"
+
+display:
+  - platform: sdl
+    id: my_display
+    update_interval: never
+    auto_clear_enabled: false
+    dimensions:
+      width: $screen_width
+      height: $screen_height
+
+touchscreen:
+  platform: sdl
+  transform:
+    mirror_x: false
+    mirror_y: false
+  id: my_touchscreen
+  display: my_display
+
+# Styles for Weather forecast
+.forecast_styles:
+    - &weather_obj_base
+      grid_cell_x_align: stretch
+      grid_cell_y_align: stretch
+      
+    - &forecast_obj_base
+      height: SIZE_CONTENT
+      width: SIZE_CONTENT
+      # outline_width: 1   # debug code - This is for visualizing boundaries remove for production
+      # outline_color: red  # debug code - This is for visualizing boundaries remove for production
+      bg_color: gray200
+      bg_opa: cover
+      radius: 3
+      pad_top: 2
+      pad_bottom : 2
+      layout:
+        type: flex
+        flex_flow: COLUMN
+        flex_align_cross: center
+        flex_align_track: center
+        pad_column: 0
+        pad_row: 2
+
+    - &forecast_label_base
+      text_font: nunito_24
+      height: SIZE_CONTENT
+
+    - &forecast_label_base_lo
+      height: SIZE_CONTENT
+      text_font: nunito_20
+      text_color: dodgerblue
+
+    - &forecast_image_base
+      height: SIZE_CONTENT
+
+lvgl:
+  pages:
+    - id: main_page
+      layout: 4x4
+      widgets:
+
+        - obj:
+            <<: *weather_obj_base
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1 
+            widgets:
+
+              - label:
+                  text: "---°"
+                  id: weather_temperature_today
+                  text_font: nunito_72
+
+        - obj:
+            <<: *weather_obj_base
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1 
+            widgets:
+              - label:
+                  text: "---%"
+                  id: weather_humidity_today
+                  text_font: nunito_48
+        - obj:
+            <<: *weather_obj_base
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 2
+            pad_all: 2
+            widgets:
+              - label:
+                  text: "Generic weather forecast: Weather will be lovely today. Very Sunny. You will love it."
+                  id: weather_summary_today
+                  long_mode: wrap
+                  scrollable: true
+                  width: 100%
+                  text_font: nunito_20
+                  text_align: LEFT
+
+        - obj:
+            <<: *weather_obj_base
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 2
+            grid_cell_row_span: 2
+            grid_cell_column_span: 2          
+            widgets:
+              - image:
+                 src: unknown_200
+                 id: weather_condition_icon
+                 align: center
+  
+  
+        - obj:
+            <<: *forecast_obj_base
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 2
+            grid_cell_column_span: 1
+            widgets:
+                - label:
+                    id: forecast_day_0
+                    <<: *forecast_label_base
+                    text: ???
+                - image:
+                    id: forecast_condition_icon_0
+                    <<: *forecast_label_base
+                    src: unknown_100
+                - label:
+                    id: forecast_temperature_hi_0
+                    <<: *forecast_label_base
+                    text: "---°"
+                - label:
+                    id: forecast_temperature_lo_0
+                    <<: *forecast_label_base_lo
+                    text: "---°"
+        - obj:
+            <<: *forecast_obj_base
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 2
+            grid_cell_column_span: 1            
+            widgets:
+                - label:
+                    id: forecast_day_1
+                    <<: *forecast_label_base
+                    text: ???
+                - image:
+                    id: forecast_condition_icon_1
+                    <<: *forecast_label_base
+                    src: unknown_100
+                - label:
+                    id: forecast_temperature_hi_1
+                    <<: *forecast_label_base
+                    text: "---°"
+                - label:
+                    id: forecast_temperature_lo_1
+                    <<: *forecast_label_base_lo
+                    text: "---°"
+        - obj:
+            <<: *forecast_obj_base
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 2
+            grid_cell_row_span: 2
+            grid_cell_column_span: 1            
+            widgets:
+                - label:
+                    id: forecast_day_2
+                    <<: *forecast_label_base
+                    text: ???
+                - image:
+                    id: forecast_condition_icon_2
+                    <<: *forecast_label_base
+                    src: unknown_100
+                - label:
+                    id: forecast_temperature_hi_2
+                    <<: *forecast_label_base
+                    text: "---°"
+                - label:
+                    id: forecast_temperature_lo_2
+                    <<: *forecast_label_base_lo
+                    text: "---°"
+        - obj:
+            <<: *forecast_obj_base
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 3
+            grid_cell_row_span: 2
+            grid_cell_column_span: 1            
+            widgets:
+                - label:
+                    id: forecast_day_3
+                    <<: *forecast_label_base
+                    text: ???
+                - image:
+                    id: forecast_condition_icon_3
+                    <<: *forecast_label_base
+                    src: unknown_100
+                - label:
+                    id: forecast_temperature_hi_3
+                    <<: *forecast_label_base
+                    text: "---°"
+                - label:
+                    id: forecast_temperature_lo_3
+                    <<: *forecast_label_base_lo
+                    text: "---°"                  

@@ -55,17 +55,14 @@ packages:
   # Enable OTA updates with a status screen
   ota_screen: !include esphome-modular-lvgl-buttons/common/ota.yaml
   # All the colors
-  colors: !include esphome-modular-lvgl-buttons/common/color.yaml
+  theme:  !include esphome-modular-lvgl-buttons/common/theme/index.yaml
   # Some nice basic fonts
-  fonts: !include esphome-modular-lvgl-buttons/common/fonts.yaml
   # 1000s of glyphs
-  glyphs: !include esphome-modular-lvgl-buttons/common/mdi_glyph_substitutions.yaml
   # Some basic sensors
-  sensors: !include esphome-modular-lvgl-buttons/sensors/sensors_base.yaml
+  sensors: !include esphome-modular-lvgl-buttons/common/sensors_base.yaml
   # Styles + Themes
-  theme_style: !include esphome-modular-lvgl-buttons/common/theme_style.yaml
   # Use this theme for debugging
-  # theme_style: !include esphome-modular-lvgl-buttons/common/theme_style_debug.yaml
+  # theme:  !include esphome-modular-lvgl-buttons/common/theme/index_debug.yaml  # uncomment to enable debug outlines
   # Include if your touch screen has a backlight. Also sets the time from HA
   backlight: !include esphome-modular-lvgl-buttons/common/backlight_time.yaml
 
@@ -82,7 +79,7 @@ packages:
 
   # Add a button the controls a light in HA
   button_1: !include
-    file: esphome-modular-lvgl-buttons/buttons/switch_button.yaml
+    file: esphome-modular-lvgl-buttons/ui/switch/remote.yaml
     vars:
       uid: button_1
       row: 0
@@ -93,7 +90,7 @@ packages:
 
   # Add a button that displays the time
   button_2: !include
-    file: esphome-modular-lvgl-buttons/buttons/time_button.yaml
+    file: esphome-modular-lvgl-buttons/buttons/time_button_legacy.yaml
     vars:
       uid: button_2
       row: 0
@@ -103,7 +100,7 @@ packages:
 
   # Add a button that goes to a different page
   button_3: !include
-    file: esphome-modular-lvgl-buttons/buttons/page_button.yaml
+    file: esphome-modular-lvgl-buttons/buttons/page_button_legacy.yaml
     vars:
       uid: button_3
       row: 1
@@ -112,23 +109,17 @@ packages:
       icon: $mdi_information_box
       click_page: info_screen
 
-  # Add a dimmer light
+  # Add a light
   button_4: !include
-    file: esphome-modular-lvgl-buttons/buttons/dimmer_light_button.yaml
+    file: esphome-modular-lvgl-buttons/ui/light/remote.yaml
     vars:
       uid: button_4
       row: 2
       column: 0
-      row_span: 2  # optional make a button bigger then one cell
+      row_span: 2
       text: RGB light
       icon: $mdi_string_lights
       entity_id: light.athom_rgb_light_d93662_rgb_light_strip
-
-  button_4_page: !include
-    file: esphome-modular-lvgl-buttons/pages/light_color.yaml
-    vars:
-      light_entity: "light.athom_rgb_light_d93662_rgb_light_strip"
-      widget_name: "button_4"
 
 
 # This is the main LVGL section. We start with a simple grid.
@@ -138,7 +129,7 @@ lvgl:
     - id: main_page
       layout: 4x7
       styles: page_style
-      <<: !include esphome-modular-lvgl-buttons/widgets/swipe_navigation.yaml
+      <<: !include esphome-modular-lvgl-buttons/common/swipe_navigation.yaml
       widgets:
         # You can use the package section above to add prebuilt button types or build your own custom button from scratch here.
         - container:

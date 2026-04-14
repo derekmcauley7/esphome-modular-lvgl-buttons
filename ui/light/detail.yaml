@@ -1,0 +1,641 @@
+---
+# Shared light detail page — RGB / CCT / brightness UI
+# Calls abstract scripts defined by the button that includes this page.
+# Works identically for both local ESPHome lights and remote HA lights.
+#
+# vars:
+#   uid:      must match the including button's uid
+#   text:     light name shown on the detail page header
+#   page_id:  parent page to return to (default: main_page)
+#
+# Scripts the button MUST define:
+#   ${uid}_light_toggle           — toggle the light on/off
+#   ${uid}_light_set_brightness   — apply id(${uid}_current_brightness) [0.0–1.0]
+#   ${uid}_light_apply_hs         — apply id(${uid}_current_hue) [0–360] + id(${uid}_current_saturation) [0–100]
+#   ${uid}_light_apply_color_temp — apply id(${uid}_current_color_temp) [Kelvin]
+#
+# Globals the button MUST keep up-to-date:
+#   ${uid}_is_on              bool
+#   ${uid}_current_brightness float  0.0–1.0
+#   ${uid}_current_hue        float  0–360
+#   ${uid}_current_saturation float  0–100
+#   ${uid}_current_color_temp float  Kelvin
+#   ${uid}_supports_rgb       bool
+#   ${uid}_supports_color_temp bool
+#   ${uid}_supports_brightness bool
+
+globals:
+- id: ${uid}_current_hue
+  type: float
+  initial_value: '0.0'
+
+- id: ${uid}_current_saturation
+  type: float
+  initial_value: '0.0'
+
+- id: ${uid}_current_brightness
+  type: float
+  initial_value: '1.0'
+
+- id: ${uid}_current_color_temp
+  type: float
+  initial_value: '4000.0'
+
+- id: ${uid}_is_temp_mode
+  type: bool
+  initial_value: 'false'
+
+- id: ${uid}_supports_rgb
+  type: bool
+  initial_value: 'false'
+
+- id: ${uid}_supports_color_temp
+  type: bool
+  initial_value: 'false'
+
+- id: ${uid}_supports_brightness
+  type: bool
+  initial_value: 'false'
+
+- id: ${uid}_is_on
+  type: bool
+  initial_value: 'false'
+
+lvgl:
+  gradients:
+  - id: ${uid}_hue_gradient
+    direction: ver
+    dither: none
+    stops:
+    - color: 0xff0000
+      position: 0
+    - color: 0xff00ff
+      position: 42
+    - color: 0x0000ff
+      position: 84
+    - color: 0x00ffff
+      position: 127
+    - color: 0x00ff00
+      position: 169
+    - color: 0xffff00
+      position: 212
+    - color: 0xff0000
+      position: 255
+
+  - id: ${uid}_color_temp_gradient
+    direction: ver
+    dither: none
+    stops:
+    - color: 0xa0c8ff
+      position: 0
+    - color: 0xe0f7ff
+      position: 80
+    - color: 0xffffff
+      position: 128
+    - color: 0xffffe0
+      position: 175
+    - color: 0xffd6a0
+      position: 255
+
+  pages:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # DETAIL PAGE
+  # ─────────────────────────────────────────────────────────────────────────────
+  - id: ${uid}_light_page
+    styles: page_style
+    scrollable: false
+    scrollbar_mode: "OFF"
+    widgets:
+
+    # BRIGHTNESS SLIDER
+    - obj:
+        id: ${uid}_brightness_bg
+        x: -110
+        y: 0
+        width: 80
+        height: 260
+        align: center
+        widgets:
+        - slider:
+            id: ${uid}_brightness_slider
+            width: 20
+            height: 200
+            align: center
+            y: -25
+            min_value: 2
+            max_value: 255
+            radius: 10
+            bg_color: steel_blue
+            knob:
+              pad_top: -5
+              pad_bottom: -5
+              bg_color: deep_orange
+            indicator:
+              radius: 0
+              bg_color: misty_blue
+            on_value:
+            - globals.set:
+                id: ${uid}_current_brightness
+                value: !lambda return x / 255.0f;
+            - script.execute: ${uid}_update_bulb_color
+            on_release:
+            - script.execute: ${uid}_light_set_brightness
+        - label:
+            align: bottom_mid
+            y: -5
+            text_font: $icon_font
+            text: $mdi_brightness_6
+            text_color: white
+
+    # SATURATION SLIDER
+    - obj:
+        id: ${uid}_saturation_bg
+        x: -60
+        y: 0
+        width: 80
+        height: 260
+        align: center
+        widgets:
+        - slider:
+            id: ${uid}_saturation_slider
+            width: 20
+            height: 200
+            align: center
+            y: -25
+            min_value: 0
+            max_value: 100
+            radius: 10
+            bg_color: steel_blue
+            knob:
+              pad_top: -5
+              pad_bottom: -5
+              bg_color: red
+            indicator:
+              radius: 0
+              bg_color: misty_blue
+            on_value:
+            - globals.set:
+                id: ${uid}_current_saturation
+                value: !lambda return x;
+            - script.execute: ${uid}_update_bulb_color
+            on_release:
+            - script.execute: ${uid}_light_apply_hs
+        - label:
+            align: bottom_mid
+            y: -5
+            text_font: $icon_font
+            text: $mdi_circle_opacity
+            text_color: white
+
+    # LIGHT NAME LABEL
+    - label:
+        id: ${uid}_detail_name_label
+        y: -420
+        x: 0
+        height: 40
+        width: 240
+        long_mode: dot
+        align: bottom_left
+        text_font: nunito_18
+        text_align: center
+        text_color: misty_blue
+        text: ${text}
+
+    # ARC BACKGROUND CONTAINER
+    - obj:
+        id: ${uid}_arc_bg
+        hidden: false
+        width: 240
+        height: 480
+        align: right_mid
+        pad_all: 0
+        bg_opa: transp
+        clickable: false
+        scrollable: false
+        border_opa: transp
+        border_width: 0
+        shadow_opa: transp
+        widgets:
+        - obj:
+            x: 240
+            width: 480
+            height: 480
+            scrollable: false
+            align: right_mid
+            pad_all: 0
+            bg_opa: transp
+            shadow_opa: transp
+            border_opa: transp
+            border_width: 0
+            widgets:
+            - obj:
+                width: 460
+                height: 460
+                align: center
+                clickable: true
+                radius: 260
+                bg_opa: transp
+                border_opa: transp
+                border_width: 0
+                scrollable: false
+
+        - obj:
+            id: ${uid}_hue_gradient_obj
+            hidden: true
+            x: 222
+            width: 444
+            height: 444
+            radius: 222
+            align: right_mid
+            pad_all: 0
+            bg_grad: ${uid}_hue_gradient
+            bg_grad_dir: ver
+            shadow_opa: transp
+            border_opa: transp
+            border_width: 0
+            bg_opa: cover
+            scrollable: false
+
+        - obj:
+            id: ${uid}_color_temp_gradient_obj
+            x: 222
+            width: 444
+            height: 444
+            radius: 222
+            align: right_mid
+            pad_all: 0
+            bg_grad: ${uid}_color_temp_gradient
+            bg_grad_dir: ver
+            shadow_opa: transp
+            border_opa: transp
+            border_width: 0
+            bg_opa: cover
+            scrollable: false
+
+        - obj:
+            x: 188
+            width: 376
+            height: 376
+            align: right_mid
+            clickable: false
+            radius: 230
+            border_width: 0
+            border_opa: transp
+            bg_opa: cover
+            scrollable: false
+
+        - obj:
+            x: 183
+            width: 366
+            height: 366
+            align: right_mid
+            radius: 230
+            border_opa: transp
+            border_width: 0
+            scrollable: false
+
+        - obj:
+            x: 222
+            width: 444
+            height: 444
+            radius: 222
+            align: right_mid
+            pad_all: 0
+            bg_opa: transp
+            shadow_opa: transp
+            border_opa: transp
+            border_width: 0
+            scrollable: false
+            widgets:
+            # HUE ARC
+            - arc:
+                id: ${uid}_arc_hue
+                hidden: true
+                clickable: true
+                adjustable: true
+                adv_hittest: true
+                align: center
+                width: 444
+                height: 444
+                start_angle: 0
+                end_angle: 180
+                min_value: 0
+                max_value: 360
+                value: 0
+                arc_width: 34
+                rotation: 90.0
+                arc_opa: transp
+                indicator:
+                  arc_opa: transp
+                  arc_width: 34
+                knob:
+                  pad_all: 0
+                  bg_opa: transp
+                  border_color: steel_blue
+                  border_width: 4
+                  shadow_opa: transp
+                on_value:
+                - globals.set:
+                    id: ${uid}_current_hue
+                    value: !lambda return x;
+                - script.execute: ${uid}_update_bulb_color
+                on_release:
+                - script.execute: ${uid}_light_apply_hs
+
+            # COLOR TEMP ARC
+            - arc:
+                id: ${uid}_arc_color_temp
+                hidden: false
+                clickable: true
+                adjustable: true
+                adv_hittest: true
+                align: center
+                width: 444
+                height: 444
+                start_angle: 0
+                end_angle: 180
+                min_value: 2000
+                max_value: 6500
+                value: 4000
+                arc_width: 34
+                rotation: 90.0
+                arc_opa: transp
+                indicator:
+                  arc_opa: transp
+                  arc_width: 34
+                knob:
+                  pad_all: 0
+                  bg_opa: transp
+                  border_color: steel_blue
+                  border_width: 4
+                  shadow_opa: transp
+                on_value:
+                - globals.set:
+                    id: ${uid}_current_color_temp
+                    value: !lambda return x;
+                - script.execute: ${uid}_update_bulb_color
+                on_release:
+                - script.execute: ${uid}_light_apply_color_temp
+
+    # LIGHTBULB TOGGLE BUTTON
+    - button:
+        id: ${uid}_bulb_btn
+        x: 0
+        y: 0
+        width: 90
+        height: 90
+        align: right_mid
+        bg_opa: transp
+        shadow_opa: cover
+        shadow_spread: 2
+        shadow_width: 20
+        shadow_color: 0x888888
+        border_width: 0
+        radius: 50
+        on_short_click:
+        - script.execute: ${uid}_light_toggle
+        widgets:
+        - label:
+            id: ${uid}_bulb_icon
+            align: center
+            text_font: $icon_font
+            text_color: 0x888888
+            text: $mdi_lightbulb
+
+    # BACK BUTTON
+    - obj:
+        id: ${uid}_back_btn
+        x: 150
+        y: 0
+        width: 80
+        height: 70
+        align: bottom_left
+        bg_opa: transp
+        pad_all: 0
+        border_opa: transp
+        border_width: 0
+        shadow_opa: transp
+        radius: 0
+        widgets:
+        - obj:
+            y: -20
+            width: 80
+            height: 5
+            align: bottom_mid
+            bg_color: steel_blue
+            pad_all: 0
+            border_opa: transp
+            border_width: 0
+            shadow_opa: transp
+            radius: 15
+            scrollable: false
+        - label:
+            align: center
+            text_font: $icon_font
+            text_color: steel_blue
+            text: $mdi_chevron_up
+        on_click:
+        - lvgl.page.show:
+            id: ${page_id | default("main_page")}
+            animation: MOVE_RIGHT
+            time: 300ms
+
+script:
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sync globals → LVGL widgets (called after any state change)
+# ═══════════════════════════════════════════════════════════════════════════════
+- id: ${uid}_sync_state
+  then:
+  # Update grid button appearance
+  - if:
+      condition:
+        lambda: return id(${uid}_is_on);
+      then:
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_on_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_on_color
+      - lvgl.widget.update:
+          id: label_${uid}
+          text_color: $label_on_color
+      - lvgl.widget.update:
+          id: slider_${uid}
+          knob:
+            bg_color: $label_on_color
+      else:
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_off_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_off_color
+      - lvgl.widget.update:
+          id: label_${uid}
+          text_color: $label_off_color
+      - lvgl.widget.update:
+          id: slider_${uid}
+          knob:
+            bg_color: $label_off_color
+
+  # Sync grid brightness slider
+  - lvgl.slider.update:
+      id: slider_${uid}
+      value: !lambda return id(${uid}_current_brightness) * 255;
+
+  # Sync detail page sliders/arcs
+  - lvgl.slider.update:
+      id: ${uid}_brightness_slider
+      value: !lambda return id(${uid}_current_brightness) * 255;
+  - lvgl.arc.update:
+      id: ${uid}_arc_hue
+      value: !lambda return (int)id(${uid}_current_hue);
+  - lvgl.slider.update:
+      id: ${uid}_saturation_slider
+      value: !lambda return (int)id(${uid}_current_saturation);
+  - lvgl.arc.update:
+      id: ${uid}_arc_color_temp
+      value: !lambda return (int)id(${uid}_current_color_temp);
+
+  - script.execute: ${uid}_update_visibility
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Show/hide detail page controls based on detected capabilities
+# ═══════════════════════════════════════════════════════════════════════════════
+- id: ${uid}_update_visibility
+  then:
+  # Brightness slider (detail page) + tile slider
+  - if:
+      condition:
+        lambda: return id(${uid}_supports_brightness);
+      then:
+      - lvgl.widget.show: ${uid}_brightness_bg
+      - lvgl.widget.show: slider_${uid}
+      else:
+      - lvgl.widget.hide: ${uid}_brightness_bg
+      - lvgl.widget.hide: slider_${uid}
+
+  # Saturation + hue arc (RGB mode only)
+  - if:
+      condition:
+        lambda: return id(${uid}_supports_rgb) && !id(${uid}_is_temp_mode);
+      then:
+      - lvgl.widget.show: ${uid}_saturation_bg
+      - lvgl.widget.show: ${uid}_hue_gradient_obj
+      - lvgl.widget.show: ${uid}_arc_hue
+      - lvgl.widget.hide: ${uid}_color_temp_gradient_obj
+      - lvgl.widget.hide: ${uid}_arc_color_temp
+      - lvgl.obj.update:
+          id: ${uid}_brightness_bg
+          x: -160
+      else:
+      - lvgl.widget.hide: ${uid}_saturation_bg
+      - lvgl.widget.hide: ${uid}_hue_gradient_obj
+      - lvgl.widget.hide: ${uid}_arc_hue
+
+  # Color temp arc (CCT mode only)
+  - if:
+      condition:
+        lambda: return id(${uid}_supports_color_temp) && id(${uid}_is_temp_mode);
+      then:
+      - lvgl.widget.show: ${uid}_color_temp_gradient_obj
+      - lvgl.widget.show: ${uid}_arc_color_temp
+      - lvgl.widget.hide: ${uid}_hue_gradient_obj
+      - lvgl.widget.hide: ${uid}_arc_hue
+      - lvgl.obj.update:
+          id: ${uid}_brightness_bg
+          x: -110
+      else:
+      - lvgl.widget.hide: ${uid}_color_temp_gradient_obj
+      - lvgl.widget.hide: ${uid}_arc_color_temp
+
+  # Arc background — hide for brightness-only lights
+  - if:
+      condition:
+        lambda: return id(${uid}_supports_rgb) || id(${uid}_supports_color_temp);
+      then:
+      - lvgl.widget.show: ${uid}_arc_bg
+      else:
+      - lvgl.widget.hide: ${uid}_arc_bg
+
+  # Auto-select CCT mode if that's the only color capability
+  - if:
+      condition:
+        lambda: return !id(${uid}_supports_rgb) && id(${uid}_supports_color_temp);
+      then:
+      - lambda: id(${uid}_is_temp_mode) = true;
+      - script.execute: ${uid}_update_visibility
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Toggle RGB ↔ CCT mode (called on long press of bulb button)
+# ═══════════════════════════════════════════════════════════════════════════════
+- id: ${uid}_toggle_color_mode
+  then:
+  - if:
+      condition:
+        lambda: return id(${uid}_supports_rgb) && id(${uid}_supports_color_temp);
+      then:
+      - lambda: id(${uid}_is_temp_mode) = !id(${uid}_is_temp_mode);
+      - script.execute: ${uid}_update_visibility
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Update bulb icon glow color from current light state
+# ═══════════════════════════════════════════════════════════════════════════════
+- id: ${uid}_update_bulb_color
+  then:
+  - lambda: |-
+      int r = 153, g = 153, b = 153;
+
+      if (id(${uid}_is_on)) {
+        if (id(${uid}_supports_rgb) && !id(${uid}_is_temp_mode)) {
+          // HSV → RGB  (v = 1.0, brightness is separate)
+          float h = id(${uid}_current_hue);
+          float s = id(${uid}_current_saturation) / 100.0f;
+          float c = s;
+          float xv = c * (1.0f - fabs(fmod(h / 60.0f, 2.0f) - 1.0f));
+          float m = 1.0f - c;
+          float rp = 0, gp = 0, bp = 0;
+          if      (h < 60)  { rp = c;  gp = xv; bp = 0; }
+          else if (h < 120) { rp = xv; gp = c;  bp = 0; }
+          else if (h < 180) { rp = 0;  gp = c;  bp = xv; }
+          else if (h < 240) { rp = 0;  gp = xv; bp = c; }
+          else if (h < 300) { rp = xv; gp = 0;  bp = c; }
+          else              { rp = c;  gp = 0;  bp = xv; }
+          r = (int)((rp + m) * 255);
+          g = (int)((gp + m) * 255);
+          b = (int)((bp + m) * 255);
+
+        } else if (id(${uid}_supports_color_temp) && id(${uid}_is_temp_mode)) {
+          // Kelvin → RGB  (Tanner Helland algorithm)
+          float temp = id(${uid}_current_color_temp) / 100.0f;
+          float rf = (temp <= 66) ? 255 : 329.698727446f * pow(temp - 60, -0.1332047592f);
+          float gf = (temp <= 66) ? 99.4708025861f * log(temp) - 161.1195681661f
+                                  : 288.1221695283f * pow(temp - 60, -0.0755148492f);
+          float bf = (temp >= 66) ? 255 : (temp <= 19) ? 0
+                                  : 138.5177312231f * log(temp - 10) - 305.0447927307f;
+          r = std::max(0, std::min(255, (int)rf));
+          g = std::max(0, std::min(255, (int)gf));
+          b = std::max(0, std::min(255, (int)bf));
+
+        } else {
+          // Brightness-only → warm yellow
+          r = 255; g = 220; b = 50;
+        }
+
+        // Scale by brightness (60%–100% range for visibility)
+        float bd = 0.6f + (id(${uid}_current_brightness) * 0.4f);
+        r = (int)(r * bd);
+        g = (int)(g * bd);
+        b = (int)(b * bd);
+      }
+
+      uint32_t color = ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+      float br = id(${uid}_current_brightness);
+      uint8_t spread = id(${uid}_is_on) ? 2 + (uint8_t)(br * 20) : 2;
+      uint8_t width  = id(${uid}_is_on) ? 20 + (uint8_t)(br * 80) : 20;
+
+      lv_obj_set_style_shadow_color(id(${uid}_bulb_btn), lv_color_hex(color), 0);
+      lv_obj_set_style_shadow_spread(id(${uid}_bulb_btn), spread, 0);
+      lv_obj_set_style_shadow_width(id(${uid}_bulb_btn), width, 0);
+      lv_obj_set_style_text_color(id(${uid}_bulb_icon), lv_color_hex(color), 0);

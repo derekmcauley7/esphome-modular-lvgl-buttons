@@ -1,0 +1,96 @@
+---
+# Remote switch tile — toggles a Home Assistant switch (or any toggleable entity).
+# Simple type: tile-only, no detail page.
+#
+# vars:
+#   uid:          unique identifier
+#   entity_id:    HA entity, e.g. "switch.garden_pump" or "input_boolean.guest_mode"
+#   row:          grid row
+#   column:       grid column
+#   text:         tile label
+#   icon:         icon glyph
+#   row_span:     (default: 1)
+#   column_span:  (default: 1)
+#   page_id:      parent page (default: main_page)
+
+globals:
+- id: ${uid}_is_on
+  type: bool
+  initial_value: 'false'
+
+lvgl:
+  pages:
+  - id: !extend ${page_id | default("main_page")}
+    widgets:
+    - container:
+        id: ${uid}_tile
+        grid_cell_row_pos: ${row}
+        grid_cell_column_pos: ${column}
+        grid_cell_row_span: ${row_span | default(1)}
+        grid_cell_column_span: ${column_span | default(1)}
+        grid_cell_x_align: stretch
+        grid_cell_y_align: stretch
+        widgets:
+        - button:
+            id: button_${uid}
+            widgets:
+            - label:
+                id: icon_${uid}
+                text_font: $icon_font
+                align: top_left
+                text: ${icon}
+            - label:
+                id: label_${uid}
+                align: bottom_left
+                long_mode: wrap
+                width: 100%
+                text: ${text}
+            on_short_click:
+              then:
+              - script.execute: ${uid}_switch_toggle
+
+# ── Subscribe to the HA entity state ─────────────────────────────────────────
+binary_sensor:
+- platform: homeassistant
+  id: ${uid}_ha_state
+  entity_id: ${entity_id}
+  trigger_on_initial_state: true
+  on_state:
+  - lambda: id(${uid}_is_on) = x;
+  - script.execute: ${uid}_sync_state
+
+script:
+# ── Abstract action script — REMOTE implementation ────────────────────────────
+- id: ${uid}_switch_toggle
+  then:
+  - homeassistant.action:
+      action: homeassistant.toggle
+      data:
+        entity_id: ${entity_id}
+
+# ── Sync globals → LVGL widgets ───────────────────────────────────────────────
+- id: ${uid}_sync_state
+  then:
+  - if:
+      condition:
+        lambda: return id(${uid}_is_on);
+      then:
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_on_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_on_color
+      - lvgl.widget.update:
+          id: label_${uid}
+          text_color: $label_on_color
+      else:
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_off_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_off_color
+      - lvgl.widget.update:
+          id: label_${uid}
+          text_color: $label_off_color
