@@ -1,19 +1,17 @@
 ---
-# Button displays the current time. Click moves to a different page (configurable)
-# Simple type: tile-only, no detail page, no state.
-#
+# Change page button
 # vars:
-#   uid:          unique identifier
-#   row:          grid row
-#   column:       grid column
-#   row_span:     (default: 1)
-#   column_span:  (default: 1)
-#   click_page:   page to go to on click (default: main_page)
-#   page_id:      parent page (default: main_page)
+#    uid:
+#    row:
+#    column:
+#    row_span:
+#    column_span:
+#    click_page:
 
+# This section add a button to LVGL page main_page
 lvgl:
   pages:
-    - id: !extend ${page_id | default("main_page")}
+    - id: !extend main_page
       widgets:
         - container:
               id: ${uid}
