@@ -1,0 +1,475 @@
+---
+# Media player detail page — full-screen playback UI
+# Included automatically by remote.yaml via packages:
+# Never include this file directly.
+#
+# Abstract script contract (implemented by remote.yaml):
+#   ${uid}_media_play_pause   — toggle play/pause
+#   ${uid}_media_next         — next track
+#   ${uid}_media_previous     — previous track
+#   ${uid}_media_set_volume   — apply ${uid}_current_volume [0.0-1.0]
+#   ${uid}_media_shuffle_set  — toggle shuffle using ${uid}_is_shuffle
+#   ${uid}_media_repeat_set   — set repeat using ${uid}_repeat_mode (0=off 1=one 2=all)
+#
+# Globals (written by remote.yaml before calling ${uid}_sync_state):
+#   ${uid}_is_playing         bool    playing state
+#   ${uid}_current_volume     float   0.0-1.0
+#   ${uid}_is_shuffle         bool    shuffle on/off
+#   ${uid}_repeat_mode        int     0=off 1=one 2=all
+#   ${uid}_progress_percent   int     0-100
+#   ${uid}_media_position     float   track position in seconds
+#   ${uid}_media_duration     float   track duration in seconds
+#   ${uid}_media_title        std::string
+#   ${uid}_media_artist       std::string
+
+globals:
+- id: ${uid}_is_playing
+  type: bool
+  initial_value: 'false'
+- id: ${uid}_current_volume
+  type: float
+  initial_value: '0.5'
+- id: ${uid}_is_shuffle
+  type: bool
+  initial_value: 'false'
+- id: ${uid}_repeat_mode
+  type: int
+  initial_value: '0'
+- id: ${uid}_progress_percent
+  type: int
+  initial_value: '0'
+- id: ${uid}_media_position
+  type: float
+  initial_value: '0.0'
+- id: ${uid}_media_duration
+  type: float
+  initial_value: '0.0'
+- id: ${uid}_media_title
+  type: std::string
+  initial_value: '""'
+- id: ${uid}_media_artist
+  type: std::string
+  initial_value: '""'
+
+lvgl:
+  pages:
+  - id: ${uid}_detail_page
+    styles: page_style
+    scrollable: false
+    scrollbar_mode: "OFF"
+    widgets:
+
+    # ── HEADER ────────────────────────────────────────────────────────────
+    - button:
+        id: ${uid}_back_btn
+        align: TOP_LEFT
+        x: 10
+        y: 10
+        width: 60
+        height: 60
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        radius: 30
+        widgets:
+        - label:
+            align: CENTER
+            text_font: $icon_font
+            text_color: $label_on_color
+            text: $mdi_chevron_left
+        on_click:
+        - lvgl.page.show:
+            id: ${page_id | default("main_page")}
+            animation: MOVE_RIGHT
+            time: 300ms
+
+    - label:
+        id: ${uid}_header_label
+        align: TOP_MID
+        y: 22
+        text_font: nunito_24
+        text_color: $label_on_color
+        text: ${text}
+
+    # ── NOW PLAYING CARD ──────────────────────────────────────────────────
+    # Large icon with glow effect
+    - button:
+        id: ${uid}_now_playing_btn
+        align: CENTER
+        y: -25%
+        width: 120
+        height: 120
+        radius: 60
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_opa: cover
+        shadow_spread: 2
+        shadow_width: 20
+        shadow_color: 0x888888
+        clickable: false
+        widgets:
+        - label:
+            id: ${uid}_now_playing_icon
+            align: CENTER
+            text_font: $icon_font
+            text_color: $icon_off_color
+            text: $mdi_music_note
+
+    # Track name
+    - label:
+        id: ${uid}_track_label
+        align: CENTER
+        y: -8%
+        width: 80%
+        text_font: nunito_24
+        text_color: $label_on_color
+        text_align: CENTER
+        long_mode: DOT
+        text: "Not Playing"
+
+    # Artist name
+    - label:
+        id: ${uid}_artist_label
+        align: CENTER
+        y: -1%
+        width: 80%
+        text_font: nunito_18
+        text_color: $label_off_color
+        text_align: CENTER
+        long_mode: DOT
+        text: ""
+
+    # ── PROGRESS BAR ──────────────────────────────────────────────────────
+    - bar:
+        id: ${uid}_progress_bar
+        align: CENTER
+        y: 8%
+        width: 80%
+        height: 6
+        min_value: 0
+        max_value: 100
+        value: 0
+        bg_color: very_dark_gray
+        indicator:
+          bg_color: $button_on_color
+
+    # ── TRANSPORT CONTROLS ────────────────────────────────────────────────
+    # Shuffle
+    - button:
+        id: ${uid}_shuffle_btn
+        align: CENTER
+        x: -40%
+        y: 20%
+        width: 50
+        height: 50
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        on_click:
+        - lambda: id(${uid}_is_shuffle) = !id(${uid}_is_shuffle);
+        - script.execute: ${uid}_media_shuffle_set
+        - script.execute: ${uid}_sync_state
+        widgets:
+        - label:
+            id: ${uid}_shuffle_icon
+            align: CENTER
+            text_font: $icon_font
+            text_color: $icon_off_color
+            text: $mdi_shuffle
+
+    # Previous
+    - button:
+        id: ${uid}_prev_btn
+        align: CENTER
+        x: -20%
+        y: 20%
+        width: 50
+        height: 50
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        on_click:
+        - script.execute: ${uid}_media_previous
+        widgets:
+        - label:
+            align: CENTER
+            text_font: $icon_font
+            text_color: $label_on_color
+            text: $mdi_skip_previous
+
+    # Play / Pause (large circular)
+    - button:
+        id: ${uid}_play_pause_btn
+        align: CENTER
+        y: 20%
+        width: 70
+        height: 70
+        radius: 35
+        bg_color: $button_on_color
+        border_width: 0
+        shadow_width: 0
+        on_click:
+        - script.execute: ${uid}_media_play_pause
+        widgets:
+        - label:
+            id: ${uid}_play_pause_icon
+            align: CENTER
+            text_font: $icon_font
+            text_color: $label_on_color
+            text: $mdi_play
+
+    # Next
+    - button:
+        id: ${uid}_next_btn
+        align: CENTER
+        x: 20%
+        y: 20%
+        width: 50
+        height: 50
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        on_click:
+        - script.execute: ${uid}_media_next
+        widgets:
+        - label:
+            align: CENTER
+            text_font: $icon_font
+            text_color: $label_on_color
+            text: $mdi_skip_next
+
+    # Repeat
+    - button:
+        id: ${uid}_repeat_btn
+        align: CENTER
+        x: 40%
+        y: 20%
+        width: 50
+        height: 50
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        on_click:
+        - lambda: |-
+            int mode = id(${uid}_repeat_mode);
+            if (mode == 0) mode = 2;       // off → all
+            else if (mode == 2) mode = 1;  // all → one
+            else mode = 0;                 // one → off
+            id(${uid}_repeat_mode) = mode;
+        - script.execute: ${uid}_media_repeat_set
+        - script.execute: ${uid}_sync_state
+        widgets:
+        - label:
+            id: ${uid}_repeat_icon
+            align: CENTER
+            text_font: $icon_font
+            text_color: $icon_off_color
+            text: $mdi_repeat
+
+    # ── VOLUME ────────────────────────────────────────────────────────────
+    - label:
+        id: ${uid}_volume_icon
+        align: BOTTOM_LEFT
+        x: 8%
+        y: -10%
+        text_font: $icon_font
+        text_color: $label_off_color
+        text: $mdi_volume_high
+
+    - slider:
+        id: ${uid}_volume_slider
+        align: BOTTOM_MID
+        x: 5%
+        y: -10%
+        width: 65%
+        height: 8
+        min_value: 0
+        max_value: 100
+        value: 50
+        on_value:
+        - globals.set:
+            id: ${uid}_current_volume
+            value: !lambda return x / 100.0f;
+        on_release:
+        - script.execute: ${uid}_volume_send
+
+# ── SCRIPTS ───────────────────────────────────────────────────────────────────
+
+script:
+# Volume debounce — restart mode cancels previous, waits 500ms, then sends
+- id: ${uid}_volume_send
+  mode: restart
+  then:
+  - delay: 500ms
+  - script.execute: ${uid}_media_set_volume
+
+# Sync all globals → LVGL widgets (tile + detail page)
+- id: ${uid}_sync_state
+  then:
+  # ── Track info ──
+  - lvgl.label.update:
+      id: ${uid}_track_label
+      text: !lambda |-
+        std::string title = id(${uid}_media_title);
+        if (title.empty()) return std::string("Not Playing");
+        return title;
+  - lvgl.label.update:
+      id: ${uid}_artist_label
+      text: !lambda return id(${uid}_media_artist);
+
+  # ── Tile label — show track title when playing, else show default text ──
+  - lvgl.label.update:
+      id: label_${uid}
+      text: !lambda |-
+        std::string title = id(${uid}_media_title);
+        if (title.empty() || !id(${uid}_is_playing)) return std::string("${text}");
+        return title;
+
+  # ── Play/Pause icon ──
+  - if:
+      condition:
+        lambda: return id(${uid}_is_playing);
+      then:
+      - lvgl.label.update:
+          id: ${uid}_play_pause_icon
+          text: $mdi_pause
+      else:
+      - lvgl.label.update:
+          id: ${uid}_play_pause_icon
+          text: $mdi_play
+
+  # ── Shuffle icon color ──
+  - if:
+      condition:
+        lambda: return id(${uid}_is_shuffle);
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_shuffle_icon
+          text_color: $icon_on_color
+      else:
+      - lvgl.widget.update:
+          id: ${uid}_shuffle_icon
+          text_color: $icon_off_color
+
+  # ── Repeat icon and color ──
+  - if:
+      condition:
+        lambda: return id(${uid}_repeat_mode) == 0;
+      then:
+      - lvgl.label.update:
+          id: ${uid}_repeat_icon
+          text: $mdi_repeat
+      - lvgl.widget.update:
+          id: ${uid}_repeat_icon
+          text_color: $icon_off_color
+  - if:
+      condition:
+        lambda: return id(${uid}_repeat_mode) == 1;
+      then:
+      - lvgl.label.update:
+          id: ${uid}_repeat_icon
+          text: $mdi_repeat_once
+      - lvgl.widget.update:
+          id: ${uid}_repeat_icon
+          text_color: $icon_on_color
+  - if:
+      condition:
+        lambda: return id(${uid}_repeat_mode) == 2;
+      then:
+      - lvgl.label.update:
+          id: ${uid}_repeat_icon
+          text: $mdi_repeat
+      - lvgl.widget.update:
+          id: ${uid}_repeat_icon
+          text_color: $icon_on_color
+
+  # ── Volume slider (skip if user is dragging) ──
+  - if:
+      condition:
+        lambda: return !id(${uid}_volume_send)->is_running();
+      then:
+      - lvgl.slider.update:
+          id: ${uid}_volume_slider
+          value: !lambda return (int)(id(${uid}_current_volume) * 100);
+
+  # ── Now playing indicator (icon glow) ──
+  - script.execute: ${uid}_update_play_indicator
+
+  # ── Tile colors ──
+  - if:
+      condition:
+        lambda: return id(${uid}_is_playing);
+      then:
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_on_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_on_color
+      - lvgl.widget.update:
+          id: label_${uid}
+          text_color: $label_on_color
+      - lvgl.widget.update:
+          id: ${uid}_indicator_dot
+          bg_color: 0x00FF00
+      else:
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_off_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_off_color
+      - lvgl.widget.update:
+          id: label_${uid}
+          text_color: $label_off_color
+      - lvgl.widget.update:
+          id: ${uid}_indicator_dot
+          bg_color: gray
+
+# Update the now-playing icon glow based on play state
+- id: ${uid}_update_play_indicator
+  then:
+  - if:
+      condition:
+        lambda: return id(${uid}_is_playing);
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_now_playing_icon
+          text_color: $icon_on_color
+      - lvgl.widget.update:
+          id: ${uid}_now_playing_btn
+          shadow_color: $button_on_color
+          shadow_spread: 8
+          shadow_width: 30
+      else:
+      - lvgl.widget.update:
+          id: ${uid}_now_playing_icon
+          text_color: $icon_off_color
+      - lvgl.widget.update:
+          id: ${uid}_now_playing_btn
+          shadow_color: 0x888888
+          shadow_spread: 2
+          shadow_width: 20
+
+# ── PROGRESS INTERVAL ─────────────────────────────────────────────────────────
+# Increments position locally each second while playing, updates progress bar
+
+interval:
+- interval: 1s
+  then:
+  - if:
+      condition:
+        lambda: return id(${uid}_is_playing);
+      then:
+      - lambda: |-
+          float pos = id(${uid}_media_position);
+          float dur = id(${uid}_media_duration);
+          if (dur > 0) {
+            pos += 1.0f;
+            if (pos > dur) pos = dur;
+            id(${uid}_media_position) = pos;
+            id(${uid}_progress_percent) = (int)((pos / dur) * 100.0f);
+          }
+      - lvgl.bar.update:
+          id: ${uid}_progress_bar
+          value: !lambda return id(${uid}_progress_percent);
