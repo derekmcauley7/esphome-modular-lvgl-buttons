@@ -1,0 +1,182 @@
+substitutions:
+  text_font: nunito_20
+  button_on_color: "ep_orange"
+  button_off_color: "very_dark_gray"
+  icon_on_color: "yellow"
+  icon_off_color: "gray"
+  label_on_color: "white"
+  label_off_color: "gray"
+  display_daytime_brightness: "85%"
+  display_nighttime_brightness: "50%"
+  display_night_hour: "22"
+  display_night_minute: "0"
+  display_backlight_timeout_always_enabled: "false"
+  display_backlight_timeout_initial: "30"
+  screen_width: "480"
+  screen_height: "480"
+
+esphome:
+  name: office-panel
+  friendly_name: Office Panel
+
+  on_boot:
+    - priority: 400
+      then:
+        - script.execute: update_loading_page
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+psram:
+
+logger:
+
+api:
+
+ota:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+captive_portal:
+
+script:
+  - id: time_update
+    then:
+      - lambda: return;
+
+packages:
+  
+  wifi: !include esphome-modular-lvgl-buttons/common/wifi.yaml
+
+  ota_screen: !include esphome-modular-lvgl-buttons/common/ota.yaml
+
+  theme: !include esphome-modular-lvgl-buttons/common/theme/index.yaml
+
+  sensors: !include esphome-modular-lvgl-buttons/common/sensors_base.yaml
+
+  backlight: !include esphome-modular-lvgl-buttons/common/backlight_time.yaml
+
+  hardware: !include esphome-modular-lvgl-buttons/hardware/guition-esp32-s3-4848s040.yaml
+
+  loading_screen: !include esphome-modular-lvgl-buttons/pages/loading.yaml
+
+  info_screen: !include esphome-modular-lvgl-buttons/pages/info.yaml
+
+  office_light: !include
+    file: esphome-modular-lvgl-buttons/ui/light/remote.yaml
+    vars:
+      uid: office_light
+      entity_id: "light.office_light"
+      row: 0
+      column: 0
+      text: "Office Light"
+      icon: $mdi_ceiling_light
+
+  spotify: !include
+    file: esphome-modular-lvgl-buttons/ui/media_player/remote.yaml
+    vars:
+      uid: spotify
+      entity_id:  "media_player.spotify_derekm7"
+      row: 1
+      column: 0
+      text: "Spotify"
+      icon: $mdi_music_note
+
+  shut_down_my_office: !include
+    file: esphome-modular-lvgl-buttons/ui/light/remote.yaml
+    vars:
+      uid: shut_down_my_office
+      entity_id: "script.shut_down_my_office"
+      row: 0
+      column: 1
+      text: "Shut Down Office"
+      icon: $mdi_remote_desktop
+
+  phone_charger: !include
+    file: esphome-modular-lvgl-buttons/ui/switch/remote.yaml
+    vars:
+      uid: phone_charger
+      entity_id: "switch.lamp_socket"
+      row: 2
+      column: 1
+      text: "Phone Charger"
+      icon: $mdi_cellphone_charging
+
+  office_blinds: !include                                                                                                                                       
+    file: esphome-modular-lvgl-buttons/ui/cover/cover_button.yaml                                                                                               
+    vars:                                                                                                                                                       
+      uid: office_blinds                                                                                                                                      
+      row: 2                                                                                                                                                    
+      column: 0                                
+      text: "Blinds"                                                                                                                                          
+      icon: $mdi_blinds
+      entity_id: "cover.office_blinds"
+      hide_slider: "true"   
+
+  # HEATING BOOST
+
+  heating_boost: !include
+    file: esphome-modular-lvgl-buttons/ui/sensor_button/remote.yaml
+    vars:
+      uid: heating_boost
+      entity_id: "sensor.thermostat_current_temperature"
+      action_entity_id: "script.heating_boost_1_hour"
+      active_duration: "60"
+      row: 1
+      column: 1
+      text: "Boost Heating"
+      icon: $mdi_thermometer_chevron_up
+      unit: "°C"
+      precision: 0
+
+lvgl:
+  pages:
+    - id: main_page
+      layout: 3x2
+      styles: page_style
+
+      <<: !include esphome-modular-lvgl-buttons/common/swipe_navigation.yaml
+
+font:
+  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_icons_40
+    size: 40
+    bpp: 8
+
+    glyphs:
+      # Required by light detail page
+      - $mdi_brightness_6
+      - $mdi_chevron_up
+      - $mdi_circle_opacity
+      - $mdi_eyedropper
+      - $mdi_lightbulb
+
+      # Main dashboard icons
+      - $mdi_ceiling_light
+      - $mdi_blinds
+      - $mdi_clock_time_eight
+      - $mdi_cellphone_charging
+      - $mdi_thermometer
+      - $mdi_thermometer_chevron_up
+      - $mdi_information_box
+      - $mdi_remote_desktop
+      - $mdi_power_plug
+      - $mdi_led_strip
+      - $mdi_play
+      - $mdi_pause 
+      - $mdi_skip_next 
+      - $mdi_skip_previous                                                                                                 
+      - $mdi_shuffle 
+      - $mdi_repeat 
+      - $mdi_repeat_once                                                                                                               
+      - $mdi_volume_high 
+      - $mdi_music_note
+      - $mdi_chevron_left
+
+  - file: "gfonts://Nunito"
+    id: nunito_2026
+    size: 20
