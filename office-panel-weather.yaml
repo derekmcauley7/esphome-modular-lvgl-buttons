@@ -214,6 +214,17 @@ lvgl:
                   text: "---%"
                   id: weather_humidity_today
                   text_font: nunito_24
+              # Hidden labels required by today.yaml package
+              - label:
+                  id: weather_summary_today
+                  height: 0
+                  width: 0
+                  opa: TRANSP
+              - label:
+                  id: weather_visibility_today
+                  height: 0
+                  width: 0
+                  opa: TRANSP
 
         # Top-right: weather icon (1x2)
         - obj:
@@ -283,117 +294,99 @@ lvgl:
                         text_font: nunito_20
                         text: "--km/h"
 
-        # Hidden labels required by today.yaml package
-        - label:
-            id: weather_summary_today
-            height: 0
-            width: 0
-            opa: TRANSP
-        - label:
-            id: weather_visibility_today
-            height: 0
-            width: 0
-            opa: TRANSP
-
-        # Forecast day 0
+        # Forecast row
         - obj:
-            <<: *forecast_obj_base
+            <<: *weather_obj_base
             grid_cell_row_pos: 2
             grid_cell_column_pos: 0
             grid_cell_row_span: 1
-            grid_cell_column_span: 1
+            grid_cell_column_span: 4
+            layout:
+              type: flex
+              flex_flow: ROW
+              flex_align_main: SPACE_EVENLY
+              flex_align_cross: CENTER
             widgets:
-              - label:
-                  id: forecast_day_0
-                  <<: *forecast_label_base
-                  text: "???"
-              - image:
-                  id: forecast_condition_icon_0
-                  <<: *forecast_label_base
-                  src: unknown_100
-              - label:
-                  id: forecast_temperature_hi_0
-                  <<: *forecast_label_base
-                  text: "---°"
-              - label:
-                  id: forecast_temperature_lo_0
-                  <<: *forecast_label_base_lo
-                  text: "---°"
-
-        # Forecast day 1
-        - obj:
-            <<: *forecast_obj_base
-            grid_cell_row_pos: 2
-            grid_cell_column_pos: 1
-            grid_cell_row_span: 1
-            grid_cell_column_span: 1
-            widgets:
-              - label:
-                  id: forecast_day_1
-                  <<: *forecast_label_base
-                  text: "???"
-              - image:
-                  id: forecast_condition_icon_1
-                  <<: *forecast_label_base
-                  src: unknown_100
-              - label:
-                  id: forecast_temperature_hi_1
-                  <<: *forecast_label_base
-                  text: "---°"
-              - label:
-                  id: forecast_temperature_lo_1
-                  <<: *forecast_label_base_lo
-                  text: "---°"
-
-        # Forecast day 2
-        - obj:
-            <<: *forecast_obj_base
-            grid_cell_row_pos: 2
-            grid_cell_column_pos: 2
-            grid_cell_row_span: 1
-            grid_cell_column_span: 1
-            widgets:
-              - label:
-                  id: forecast_day_2
-                  <<: *forecast_label_base
-                  text: "???"
-              - image:
-                  id: forecast_condition_icon_2
-                  <<: *forecast_label_base
-                  src: unknown_100
-              - label:
-                  id: forecast_temperature_hi_2
-                  <<: *forecast_label_base
-                  text: "---°"
-              - label:
-                  id: forecast_temperature_lo_2
-                  <<: *forecast_label_base_lo
-                  text: "---°"
-
-        # Forecast day 3
-        - obj:
-            <<: *forecast_obj_base
-            grid_cell_row_pos: 2
-            grid_cell_column_pos: 3
-            grid_cell_row_span: 1
-            grid_cell_column_span: 1
-            widgets:
-              - label:
-                  id: forecast_day_3
-                  <<: *forecast_label_base
-                  text: "???"
-              - image:
-                  id: forecast_condition_icon_3
-                  <<: *forecast_label_base
-                  src: unknown_100
-              - label:
-                  id: forecast_temperature_hi_3
-                  <<: *forecast_label_base
-                  text: "---°"
-              - label:
-                  id: forecast_temperature_lo_3
-                  <<: *forecast_label_base_lo
-                  text: "---°"
+              # Day 0
+              - obj:
+                  <<: *forecast_obj_base
+                  widgets:
+                    - label:
+                        id: forecast_day_0
+                        <<: *forecast_label_base
+                        text: "???"
+                    - image:
+                        id: forecast_condition_icon_0
+                        <<: *forecast_label_base
+                        src: unknown_100
+                    - label:
+                        id: forecast_temperature_hi_0
+                        <<: *forecast_label_base
+                        text: "---°"
+                    - label:
+                        id: forecast_temperature_lo_0
+                        <<: *forecast_label_base_lo
+                        text: "---°"
+              # Day 1
+              - obj:
+                  <<: *forecast_obj_base
+                  widgets:
+                    - label:
+                        id: forecast_day_1
+                        <<: *forecast_label_base
+                        text: "???"
+                    - image:
+                        id: forecast_condition_icon_1
+                        <<: *forecast_label_base
+                        src: unknown_100
+                    - label:
+                        id: forecast_temperature_hi_1
+                        <<: *forecast_label_base
+                        text: "---°"
+                    - label:
+                        id: forecast_temperature_lo_1
+                        <<: *forecast_label_base_lo
+                        text: "---°"
+              # Day 2
+              - obj:
+                  <<: *forecast_obj_base
+                  widgets:
+                    - label:
+                        id: forecast_day_2
+                        <<: *forecast_label_base
+                        text: "???"
+                    - image:
+                        id: forecast_condition_icon_2
+                        <<: *forecast_label_base
+                        src: unknown_100
+                    - label:
+                        id: forecast_temperature_hi_2
+                        <<: *forecast_label_base
+                        text: "---°"
+                    - label:
+                        id: forecast_temperature_lo_2
+                        <<: *forecast_label_base_lo
+                        text: "---°"
+              # Day 3
+              - obj:
+                  <<: *forecast_obj_base
+                  widgets:
+                    - label:
+                        id: forecast_day_3
+                        <<: *forecast_label_base
+                        text: "???"
+                    - image:
+                        id: forecast_condition_icon_3
+                        <<: *forecast_label_base
+                        src: unknown_100
+                    - label:
+                        id: forecast_temperature_hi_3
+                        <<: *forecast_label_base
+                        text: "---°"
+                    - label:
+                        id: forecast_temperature_lo_3
+                        <<: *forecast_label_base_lo
+                        text: "---°"
 
 font:
   - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
