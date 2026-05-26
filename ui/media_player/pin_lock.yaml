@@ -1,0 +1,202 @@
+---
+# PIN lock page for media player detail page.
+# Included automatically by remote.yaml via packages: when pin_code is set.
+# Never include this file directly.
+#
+# vars:
+#   uid:       unique identifier
+#   pin_code:  4-digit PIN string (empty = PIN lock disabled)
+#   page_id:   parent page ID (default: main_page)
+
+# ── GLOBALS ──────────────────────────────────────────────────────────────────────
+
+globals:
+- id: ${uid}_pin_unlocked
+  type: bool
+  initial_value: 'false'
+- id: ${uid}_pin_position
+  type: int
+  initial_value: '0'
+- id: ${uid}_pin_digit_0
+  type: int
+  initial_value: '0'
+- id: ${uid}_pin_digit_1
+  type: int
+  initial_value: '0'
+- id: ${uid}_pin_digit_2
+  type: int
+  initial_value: '0'
+- id: ${uid}_pin_digit_3
+  type: int
+  initial_value: '0'
+
+# ── SCRIPTS ──────────────────────────────────────────────────────────────────────
+
+script:
+# Update all 4 dot indicators based on current position
+- id: ${uid}_pin_sync_dots
+  then:
+  - if:
+      condition:
+        lambda: return id(${uid}_pin_position) >= 1;
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_0
+          bg_color: $button_on_color
+          bg_opa: cover
+          border_width: 0
+      else:
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_0
+          bg_opa: transp
+          border_color: $icon_off_color
+          border_width: 2
+  - if:
+      condition:
+        lambda: return id(${uid}_pin_position) >= 2;
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_1
+          bg_color: $button_on_color
+          bg_opa: cover
+          border_width: 0
+      else:
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_1
+          bg_opa: transp
+          border_color: $icon_off_color
+          border_width: 2
+  - if:
+      condition:
+        lambda: return id(${uid}_pin_position) >= 3;
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_2
+          bg_color: $button_on_color
+          bg_opa: cover
+          border_width: 0
+      else:
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_2
+          bg_opa: transp
+          border_color: $icon_off_color
+          border_width: 2
+  - if:
+      condition:
+        lambda: return id(${uid}_pin_position) >= 4;
+      then:
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_3
+          bg_color: $button_on_color
+          bg_opa: cover
+          border_width: 0
+      else:
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_3
+          bg_opa: transp
+          border_color: $icon_off_color
+          border_width: 2
+
+# Reset all PIN input state and unfill dots
+- id: ${uid}_pin_reset
+  then:
+  - globals.set:
+      id: ${uid}_pin_position
+      value: '0'
+  - globals.set:
+      id: ${uid}_pin_digit_0
+      value: '0'
+  - globals.set:
+      id: ${uid}_pin_digit_1
+      value: '0'
+  - globals.set:
+      id: ${uid}_pin_digit_2
+      value: '0'
+  - globals.set:
+      id: ${uid}_pin_digit_3
+      value: '0'
+  - script.execute: ${uid}_pin_sync_dots
+
+# Re-lock: set unlocked to false and reset input
+- id: ${uid}_pin_relock
+  then:
+  - globals.set:
+      id: ${uid}_pin_unlocked
+      value: 'false'
+  - script.execute: ${uid}_pin_reset
+
+# Append a digit to the PIN input
+- id: ${uid}_pin_append_digit
+  parameters:
+    digit: int
+  then:
+  - lambda: |-
+      int pos = id(${uid}_pin_position);
+      if (pos >= 4) return;
+      if (pos == 0) id(${uid}_pin_digit_0) = digit;
+      else if (pos == 1) id(${uid}_pin_digit_1) = digit;
+      else if (pos == 2) id(${uid}_pin_digit_2) = digit;
+      else if (pos == 3) id(${uid}_pin_digit_3) = digit;
+      id(${uid}_pin_position) = pos + 1;
+  - script.execute: ${uid}_pin_sync_dots
+  - if:
+      condition:
+        lambda: return id(${uid}_pin_position) >= 4;
+      then:
+      - delay: 100ms
+      - script.execute: ${uid}_pin_validate
+
+# Remove last digit
+- id: ${uid}_pin_backspace
+  then:
+  - lambda: |-
+      int pos = id(${uid}_pin_position);
+      if (pos <= 0) return;
+      pos--;
+      id(${uid}_pin_position) = pos;
+  - script.execute: ${uid}_pin_sync_dots
+
+# Validate entered PIN against pin_code
+- id: ${uid}_pin_validate
+  then:
+  - if:
+      condition:
+        lambda: |-
+          std::string pin = "${pin_code}";
+          return (pin.length() >= 4 &&
+                  (pin[0] - '0') == id(${uid}_pin_digit_0) &&
+                  (pin[1] - '0') == id(${uid}_pin_digit_1) &&
+                  (pin[2] - '0') == id(${uid}_pin_digit_2) &&
+                  (pin[3] - '0') == id(${uid}_pin_digit_3));
+      then:
+      - globals.set:
+          id: ${uid}_pin_unlocked
+          value: 'true'
+      - script.execute: ${uid}_pin_reset
+      - lvgl.page.show:
+          id: ${uid}_detail_page
+          animation: MOVE_LEFT
+          time: 300ms
+      else:
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_0
+          bg_color: 0xFF0000
+          bg_opa: cover
+          border_width: 0
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_1
+          bg_color: 0xFF0000
+          bg_opa: cover
+          border_width: 0
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_2
+          bg_color: 0xFF0000
+          bg_opa: cover
+          border_width: 0
+      - lvgl.widget.update:
+          id: ${uid}_pin_dot_3
+          bg_color: 0xFF0000
+          bg_opa: cover
+          border_width: 0
+      - delay: 300ms
+      - script.execute: ${uid}_pin_reset
