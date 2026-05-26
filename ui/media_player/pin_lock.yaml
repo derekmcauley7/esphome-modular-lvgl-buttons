@@ -30,6 +30,346 @@ globals:
   type: int
   initial_value: '0'
 
+# ── PIN PAGE ─────────────────────────────────────────────────────────────────────
+
+lvgl:
+  pages:
+  - id: ${uid}_pin_page
+    styles: page_style
+    scrollable: false
+    scrollbar_mode: "OFF"
+    widgets:
+
+    # Close button (top-left)
+    - button:
+        id: ${uid}_pin_close_btn
+        align: TOP_LEFT
+        x: 10
+        y: 10
+        width: 60
+        height: 60
+        bg_opa: transp
+        border_width: 0
+        shadow_width: 0
+        radius: 30
+        widgets:
+        - label:
+            align: CENTER
+            text_font: $icon_font
+            text_color: $label_on_color
+            text: $mdi_close
+        on_click:
+        - script.execute: ${uid}_pin_reset
+        - lvgl.page.show:
+            id: ${page_id}
+            animation: MOVE_RIGHT
+            time: 300ms
+
+    # Lock icon (top-center)
+    - label:
+        align: TOP_MID
+        y: 22
+        text_font: $icon_font
+        text_color: $label_on_color
+        text: $mdi_lock
+
+    # Header label
+    - label:
+        align: CENTER
+        y: -35%
+        text_font: nunito_24
+        text_color: $label_on_color
+        text: "Enter PIN"
+
+    # ── DOT INDICATORS ────────────────────────────────────────────────────
+    - obj:
+        align: CENTER
+        y: -25%
+        width: 100
+        height: 14
+        bg_opa: transp
+        border_width: 0
+        pad_all: 0
+        widgets:
+        - obj:
+            id: ${uid}_pin_dot_0
+            x: 8
+            y: 0
+            width: 12
+            height: 12
+            radius: 6
+            bg_opa: transp
+            border_color: $icon_off_color
+            border_width: 2
+        - obj:
+            id: ${uid}_pin_dot_1
+            x: 30
+            y: 0
+            width: 12
+            height: 12
+            radius: 6
+            bg_opa: transp
+            border_color: $icon_off_color
+            border_width: 2
+        - obj:
+            id: ${uid}_pin_dot_2
+            x: 52
+            y: 0
+            width: 12
+            height: 12
+            radius: 6
+            bg_opa: transp
+            border_color: $icon_off_color
+            border_width: 2
+        - obj:
+            id: ${uid}_pin_dot_3
+            x: 74
+            y: 0
+            width: 12
+            height: 12
+            radius: 6
+            bg_opa: transp
+            border_color: $icon_off_color
+            border_width: 2
+
+    # ── KEYPAD BUTTONS ────────────────────────────────────────────────────
+    # Row 1: 1, 2, 3
+    - button:
+        align: CENTER
+        x: -20%
+        y: -8%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 1
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "1"
+    - button:
+        align: CENTER
+        x: 0
+        y: -8%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 2
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "2"
+    - button:
+        align: CENTER
+        x: 20%
+        y: -8%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 3
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "3"
+
+    # Row 2: 4, 5, 6
+    - button:
+        align: CENTER
+        x: -20%
+        y: 6%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 4
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "4"
+    - button:
+        align: CENTER
+        x: 0
+        y: 6%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 5
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "5"
+    - button:
+        align: CENTER
+        x: 20%
+        y: 6%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 6
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "6"
+
+    # Row 3: 7, 8, 9
+    - button:
+        align: CENTER
+        x: -20%
+        y: 20%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 7
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "7"
+    - button:
+        align: CENTER
+        x: 0
+        y: 20%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 8
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "8"
+    - button:
+        align: CENTER
+        x: 20%
+        y: 20%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 9
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "9"
+
+    # Row 4: backspace, 0, (empty)
+    - button:
+        align: CENTER
+        x: -20%
+        y: 34%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute: ${uid}_pin_backspace
+        widgets:
+        - label:
+            align: CENTER
+            text_font: $icon_font
+            text_color: $label_on_color
+            text: $mdi_backspace
+    - button:
+        align: CENTER
+        x: 0
+        y: 34%
+        width: 60
+        height: 55
+        bg_color: $button_off_color
+        border_width: 0
+        shadow_width: 0
+        radius: 10
+        on_short_click:
+        - script.execute:
+            id: ${uid}_pin_append_digit
+            digit: 0
+        widgets:
+        - label:
+            align: CENTER
+            text_font: nunito_24
+            text_color: $label_on_color
+            text: "0"
+
+  # ── BACK BUTTON RE-LOCK ────────────────────────────────────────────────
+  # Extends the existing back button in detail.yaml to re-lock on navigate away.
+  # ESPHome's !extend appends to existing on_click handlers — the original
+  # navigation action in detail.yaml still fires.
+  - id: !extend ${uid}_detail_page
+    widgets:
+    - button:
+        id: !extend ${uid}_back_btn
+        on_click:
+        - script.execute: ${uid}_pin_relock
+
 # ── SCRIPTS ──────────────────────────────────────────────────────────────────────
 
 script:
