@@ -26,7 +26,7 @@ packages:
     file: pin_lock.yaml
     vars:
       uid: ${uid}
-      pin_code: "${pin_code | default("")}"
+      pin_code: '${pin_code | default("")}'
       page_id: ${page_id | default("main_page")}
 
 # ── TILE ──────────────────────────────────────────────────────────────────────

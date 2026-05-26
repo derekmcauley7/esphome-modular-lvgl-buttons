@@ -1,0 +1,437 @@
+substitutions:
+  text_font: nunito_20
+  button_on_color: "ep_orange"
+  button_off_color: "very_dark_gray"
+  icon_on_color: "yellow"
+  icon_off_color: "gray"
+  label_on_color: "white"
+  label_off_color: "gray"
+  display_daytime_brightness: "85%"
+  display_nighttime_brightness: "50%"
+  display_night_hour: "22"
+  display_night_minute: "0"
+  display_backlight_timeout_always_enabled: "false"
+  display_backlight_timeout_initial: "30"
+  screen_width: "480"
+  screen_height: "480"
+
+esphome:
+  name: office-panel
+  friendly_name: Office Panel
+
+  on_boot:
+    - priority: 400
+      then:
+        - script.execute: update_loading_page
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+psram:
+
+logger:
+
+api:
+
+ota:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+captive_portal:
+
+script:
+  - id: time_update
+    then:
+      - lambda: return;
+
+packages:
+
+  wifi: !include esphome-modular-lvgl-buttons/common/wifi.yaml
+
+  ota_screen: !include esphome-modular-lvgl-buttons/common/ota.yaml
+
+  theme: !include esphome-modular-lvgl-buttons/common/theme/index.yaml
+
+  sensors: !include esphome-modular-lvgl-buttons/common/sensors_base.yaml
+
+  backlight: !include esphome-modular-lvgl-buttons/common/backlight_time.yaml
+
+  hardware: !include esphome-modular-lvgl-buttons/hardware/guition-esp32-s3-4848s040.yaml
+
+  loading_screen: !include esphome-modular-lvgl-buttons/pages/loading.yaml
+
+  info_screen: !include esphome-modular-lvgl-buttons/pages/info.yaml
+
+  office_light: !include
+    file: esphome-modular-lvgl-buttons/ui/light/remote.yaml
+    vars:
+      uid: office_light
+      entity_id: "light.office_light"
+      row: 0
+      column: 0
+      text: "Office Light"
+      icon: $mdi_ceiling_light
+
+  spotify: !include
+    file: esphome-modular-lvgl-buttons/ui/media_player/remote.yaml
+    vars:
+      uid: spotify
+      entity_id:  "media_player.spotify_derekm7"
+      row: 1
+      column: 0
+      text: "Spotify"
+      icon: $mdi_music_note
+
+  shut_down_my_office: !include
+    file: esphome-modular-lvgl-buttons/ui/light/remote.yaml
+    vars:
+      uid: shut_down_my_office
+      entity_id: "script.shut_down_my_office"
+      row: 0
+      column: 1
+      text: "Shut Down Office"
+      icon: $mdi_remote_desktop
+
+  phone_charger: !include
+    file: esphome-modular-lvgl-buttons/ui/switch/remote.yaml
+    vars:
+      uid: phone_charger
+      entity_id: "switch.lamp_socket"
+      row: 2
+      column: 1
+      text: "Phone Charger"
+      icon: $mdi_cellphone_charging
+
+  office_blinds: !include
+    file: esphome-modular-lvgl-buttons/ui/cover/cover_button.yaml
+    vars:
+      uid: office_blinds
+      row: 2
+      column: 0
+      text: "Blinds"
+      icon: $mdi_blinds
+      entity_id: "cover.office_blinds"
+      hide_slider: "true"
+
+  # HEATING BOOST
+
+  heating_boost: !include
+    file: esphome-modular-lvgl-buttons/ui/sensor_button/remote.yaml
+    vars:
+      uid: heating_boost
+      entity_id: "sensor.thermostat_current_temperature"
+      action_entity_id: "script.heating_boost_1_hour"
+      active_duration: "60"
+      row: 1
+      column: 1
+      text: "Boost Heating"
+      icon: $mdi_thermometer_chevron_up
+      unit: "°C"
+      precision: 0
+
+  # Weather packages
+  weather_today_200: !include
+    file: esphome-modular-lvgl-buttons/ui/weather/today.yaml
+    vars:
+      size: 200
+      weather_entity: weather.forecast_home
+      weather_summary: weather.forecast_home
+
+  weather_forecast_100: !include
+    file: esphome-modular-lvgl-buttons/ui/weather/forecast.yaml
+    vars:
+      size: 100
+      weather_entity: weather.forecast_home
+
+# Styles for weather forecast cards
+.forecast_styles:
+    - &weather_obj_base
+      grid_cell_x_align: stretch
+      grid_cell_y_align: stretch
+
+    - &forecast_obj_base
+      height: SIZE_CONTENT
+      width: SIZE_CONTENT
+      bg_color: gray200
+      bg_opa: cover
+      radius: 3
+      pad_top: 2
+      pad_bottom: 2
+      layout:
+        type: flex
+        flex_flow: COLUMN
+        flex_align_cross: center
+        flex_align_track: center
+        pad_column: 0
+        pad_row: 2
+
+    - &forecast_label_base
+      text_font: nunito_24
+      height: SIZE_CONTENT
+
+    - &forecast_label_base_lo
+      height: SIZE_CONTENT
+      text_font: nunito_20
+      text_color: dodgerblue
+
+lvgl:
+  pages:
+    - id: main_page
+      layout: 3x2
+      styles: page_style
+
+      <<: !include esphome-modular-lvgl-buttons/common/swipe_navigation.yaml
+
+    - id: weather_page
+      layout: 3x4
+      styles: page_style
+
+      <<: !include esphome-modular-lvgl-buttons/common/swipe_navigation.yaml
+
+      widgets:
+        # Top-left: temperature + humidity stacked
+        - obj:
+            <<: *weather_obj_base
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 2
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              flex_align_cross: START
+              pad_row: 2
+            widgets:
+              - label:
+                  text: "---°"
+                  id: weather_temperature_today
+                  text_font: nunito_48
+              - label:
+                  text: "---%"
+                  id: weather_humidity_today
+                  text_font: nunito_24
+
+        # Top-right: weather icon (1x2)
+        - obj:
+            <<: *weather_obj_base
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 2
+            grid_cell_row_span: 1
+            grid_cell_column_span: 2
+            widgets:
+              - image:
+                  src: unknown_200
+                  id: weather_condition_icon
+                  align: center
+
+        # Row 1: pressure + wind
+        - obj:
+            <<: *weather_obj_base
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 4
+            layout:
+              type: grid
+              grid_columns: [CONTENT, FR(1), CONTENT, FR(1)]
+              grid_rows: [CONTENT]
+              pad_row: 2
+              pad_column: 8
+            widgets:
+              - label:
+                  text_font: nunito_20
+                  text: "Pressure"
+                  grid_cell_row_pos: 0
+                  grid_cell_column_pos: 0
+                  grid_cell_x_align: START
+              - label:
+                  id: weather_pressure_today
+                  text_font: nunito_20
+                  text: "-- hPa"
+                  grid_cell_row_pos: 0
+                  grid_cell_column_pos: 1
+                  grid_cell_x_align: END
+              - label:
+                  text_font: $icon_font
+                  text: $mdi_weather_windy
+                  grid_cell_row_pos: 0
+                  grid_cell_column_pos: 2
+                  grid_cell_x_align: START
+              - obj:
+                  bg_opa: TRANSP
+                  width: SIZE_CONTENT
+                  height: SIZE_CONTENT
+                  pad_all: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_column_pos: 3
+                  grid_cell_x_align: END
+                  layout:
+                    type: flex
+                    flex_flow: ROW
+                    pad_column: 4
+                  widgets:
+                    - label:
+                        id: weather_wind_dir_today
+                        text_font: nunito_20
+                        text: "---"
+                    - label:
+                        id: weather_wind_speed_today
+                        text_font: nunito_20
+                        text: "--km/h"
+
+        # Hidden labels required by today.yaml package
+        - label:
+            id: weather_summary_today
+            height: 0
+            width: 0
+            opa: TRANSP
+        - label:
+            id: weather_visibility_today
+            height: 0
+            width: 0
+            opa: TRANSP
+
+        # Forecast day 0
+        - obj:
+            <<: *forecast_obj_base
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 0
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            widgets:
+              - label:
+                  id: forecast_day_0
+                  <<: *forecast_label_base
+                  text: "???"
+              - image:
+                  id: forecast_condition_icon_0
+                  <<: *forecast_label_base
+                  src: unknown_100
+              - label:
+                  id: forecast_temperature_hi_0
+                  <<: *forecast_label_base
+                  text: "---°"
+              - label:
+                  id: forecast_temperature_lo_0
+                  <<: *forecast_label_base_lo
+                  text: "---°"
+
+        # Forecast day 1
+        - obj:
+            <<: *forecast_obj_base
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 1
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            widgets:
+              - label:
+                  id: forecast_day_1
+                  <<: *forecast_label_base
+                  text: "???"
+              - image:
+                  id: forecast_condition_icon_1
+                  <<: *forecast_label_base
+                  src: unknown_100
+              - label:
+                  id: forecast_temperature_hi_1
+                  <<: *forecast_label_base
+                  text: "---°"
+              - label:
+                  id: forecast_temperature_lo_1
+                  <<: *forecast_label_base_lo
+                  text: "---°"
+
+        # Forecast day 2
+        - obj:
+            <<: *forecast_obj_base
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 2
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            widgets:
+              - label:
+                  id: forecast_day_2
+                  <<: *forecast_label_base
+                  text: "???"
+              - image:
+                  id: forecast_condition_icon_2
+                  <<: *forecast_label_base
+                  src: unknown_100
+              - label:
+                  id: forecast_temperature_hi_2
+                  <<: *forecast_label_base
+                  text: "---°"
+              - label:
+                  id: forecast_temperature_lo_2
+                  <<: *forecast_label_base_lo
+                  text: "---°"
+
+        # Forecast day 3
+        - obj:
+            <<: *forecast_obj_base
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 3
+            grid_cell_row_span: 1
+            grid_cell_column_span: 1
+            widgets:
+              - label:
+                  id: forecast_day_3
+                  <<: *forecast_label_base
+                  text: "???"
+              - image:
+                  id: forecast_condition_icon_3
+                  <<: *forecast_label_base
+                  src: unknown_100
+              - label:
+                  id: forecast_temperature_hi_3
+                  <<: *forecast_label_base
+                  text: "---°"
+              - label:
+                  id: forecast_temperature_lo_3
+                  <<: *forecast_label_base_lo
+                  text: "---°"
+
+font:
+  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_icons_40
+    size: 40
+    bpp: 8
+
+    glyphs:
+      # Required by light detail page
+      - $mdi_brightness_6
+      - $mdi_chevron_up
+      - $mdi_circle_opacity
+      - $mdi_eyedropper
+      - $mdi_lightbulb
+
+      # Main dashboard icons
+      - $mdi_ceiling_light
+      - $mdi_blinds
+      - $mdi_clock_time_eight
+      - $mdi_cellphone_charging
+      - $mdi_thermometer
+      - $mdi_thermometer_chevron_up
+      - $mdi_information_box
+      - $mdi_remote_desktop
+      - $mdi_power_plug
+      - $mdi_led_strip
+      - $mdi_play
+      - $mdi_pause
+      - $mdi_skip_next
+      - $mdi_skip_previous
+      - $mdi_shuffle
+      - $mdi_repeat
+      - $mdi_repeat_once
+      - $mdi_volume_high
+      - $mdi_music_note
+      - $mdi_chevron_left
+      - $mdi_weather_windy
+
+  - file: "gfonts://Nunito"
+    id: nunito_2026
+    size: 20
