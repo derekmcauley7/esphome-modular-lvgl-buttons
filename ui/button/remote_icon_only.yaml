@@ -2,15 +2,13 @@
 # Remote icon-only button tile — a large centered icon that triggers a Home Assistant
 # button (or script/scene/input_button) on press. No text label.
 #
-# Requires the substitution `icon_font_large` to be defined in the device config,
-# pointing to a larger MDI font (e.g. mdi_icons_64).
-#
 # vars:
 #   uid:          unique identifier
 #   entity_id:    HA entity, e.g. "button.restart", "script.good_night", "scene.movie_mode"
 #   row:          grid row
 #   column:       grid column
 #   icon:         icon glyph
+#   icon_font:    font ID for the icon (e.g. mdi_icons_64, flux_capacitor_font)
 #   row_span:     (default: 1)
 #   column_span:  (default: 1)
 #   page_id:      parent page (default: main_page)
@@ -33,7 +31,7 @@ lvgl:
             widgets:
             - label:
                 id: icon_${uid}
-                text_font: $icon_font_large
+                text_font: ${icon_font}
                 align: center
                 text: ${icon}
             on_short_click:
