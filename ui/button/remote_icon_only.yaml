@@ -1,17 +1,24 @@
 ---
 # Remote icon-only button tile — a large centered icon that triggers a Home Assistant
 # button (or script/scene/input_button) on press. No text label.
+# Timed visual "active" state on press.
 #
 # vars:
-#   uid:          unique identifier
-#   entity_id:    HA entity, e.g. "button.restart", "script.good_night", "scene.movie_mode"
-#   row:          grid row
-#   column:       grid column
-#   icon:         icon glyph
-#   icon_font:    font ID for the icon (e.g. mdi_icons_64, flux_capacitor_font)
-#   row_span:     (default: 1)
-#   column_span:  (default: 1)
-#   page_id:      parent page (default: main_page)
+#   uid:              unique identifier
+#   entity_id:        HA entity, e.g. "button.restart", "script.good_night", "scene.movie_mode"
+#   row:              grid row
+#   column:           grid column
+#   icon:             icon glyph
+#   icon_font:        font ID for the icon (e.g. mdi_icons_64, flux_capacitor_font)
+#   active_duration:  seconds the tile stays visually "on" after press (default: 5)
+#   row_span:         (default: 1)
+#   column_span:      (default: 1)
+#   page_id:          parent page (default: main_page)
+
+globals:
+- id: ${uid}_is_active
+  type: bool
+  initial_value: 'false'
 
 lvgl:
   pages:
@@ -28,6 +35,7 @@ lvgl:
         widgets:
         - button:
             id: button_${uid}
+            pad_all: 0
             widgets:
             - label:
                 id: icon_${uid}
@@ -36,7 +44,44 @@ lvgl:
                 text: ${icon}
             on_short_click:
               then:
-              - homeassistant.action:
-                  action: homeassistant.turn_on
-                  data:
-                    entity_id: ${entity_id}
+              - script.execute: ${uid}_press_action
+
+script:
+# ── Press action — call HA action and activate visual state ──────────────────
+- id: ${uid}_press_action
+  then:
+  - homeassistant.action:
+      action: homeassistant.turn_on
+      data:
+        entity_id: ${entity_id}
+  - lambda: id(${uid}_is_active) = true;
+  - script.execute: ${uid}_sync_state
+  - script.execute: ${uid}_timer_expired
+
+# ── Timer — revert visual state after active_duration seconds ────────────────
+- id: ${uid}_timer_expired
+  then:
+  - delay: ${active_duration | default(5)}s
+  - lambda: id(${uid}_is_active) = false;
+  - script.execute: ${uid}_sync_state
+
+# ── Sync globals → LVGL widgets ─────────────────────────────────────────────
+- id: ${uid}_sync_state
+  then:
+  - if:
+      condition:
+        lambda: return id(${uid}_is_active);
+      then:
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_on_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_on_color
+      else:
+      - lvgl.widget.update:
+          id: button_${uid}
+          bg_color: $button_off_color
+      - lvgl.widget.update:
+          id: icon_${uid}
+          text_color: $icon_off_color
