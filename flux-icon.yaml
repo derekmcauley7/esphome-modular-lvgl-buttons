@@ -1,0 +1,249 @@
+substitutions:
+  text_font: nunito_20
+  button_on_color: "ep_orange"
+  button_off_color: "very_dark_gray"
+  icon_on_color: "yellow"
+  icon_off_color: "gray"
+  label_on_color: "white"
+  label_off_color: "gray"
+  display_daytime_brightness: "85%"
+  display_nighttime_brightness: "50%"
+  display_night_hour: "22"
+  display_night_minute: "0"
+  display_backlight_timeout_always_enabled: "false"
+  display_backlight_timeout_initial: "30"
+  screen_width: "480"
+  screen_height: "480"
+  mdi_flux_capacitor: "\uF000"
+  mdi_marty_mcfly: "\uE801"
+
+esphome:
+  name: office-panel
+  friendly_name: Office Panel
+
+  on_boot:
+    - priority: 400
+      then:
+        - script.execute: update_loading_page
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+psram:
+
+logger:
+
+api:
+
+ota:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+captive_portal:
+
+script:
+  - id: time_update
+    then:
+      - lambda: return;
+
+packages:
+
+  wifi: !include esphome-modular-lvgl-buttons/common/wifi.yaml
+  ota_screen: !include esphome-modular-lvgl-buttons/common/ota.yaml
+  theme: !include esphome-modular-lvgl-buttons/common/theme/index.yaml
+  sensors: !include esphome-modular-lvgl-buttons/common/sensors_base.yaml
+  backlight: !include esphome-modular-lvgl-buttons/common/backlight_time.yaml
+  hardware: !include esphome-modular-lvgl-buttons/hardware/guition-esp32-s3-4848s040.yaml
+  loading_screen: !include esphome-modular-lvgl-buttons/pages/loading.yaml
+  info_screen: !include esphome-modular-lvgl-buttons/pages/info.yaml
+
+  office_light: !include
+    file: esphome-modular-lvgl-buttons/ui/light/remote.yaml
+    vars:
+      uid: office_light
+      entity_id: light.office_light
+      row: 0
+      column: 0
+      text: "Office Light"
+      icon: $mdi_ceiling_light
+
+  spotify: !include
+    file: esphome-modular-lvgl-buttons/ui/media_player/remote.yaml
+    vars:
+      uid: spotify
+      entity_id: media_player.spotify_derekm7
+      row: 1
+      column: 0
+      text: "Spotify"
+      icon: $mdi_spotify
+
+  flux_capacitor: !include                       
+    file: esphome-modular-lvgl-buttons/ui/button/remote_icon_only.yaml                                                                                                                                                                       
+    vars:                                                                                                                                                                                                                                      
+      uid: flux_capacitor                                                                                                                                                                                                                      
+      entity_id: script.time_circuits_on                                                                                                                                                                               
+      row: 0                                                                                                                                                                                                                                   
+      column: 1                                                                                                                                                                                                                                
+      icon: $mdi_flux_capacitor                                                                                                                                                                                                          
+      icon_font: flux_capacitor_font                                                                                                                                                                                                           
+      active_duration: "10" 
+
+  phone_charger: !include
+    file: esphome-modular-lvgl-buttons/ui/switch/remote.yaml
+    vars:
+      uid: phone_charger
+      entity_id: switch.lamp_socket
+      row: 2
+      column: 1
+      text: "Phone Charger"
+      icon: $mdi_cellphone_charging
+
+  office_blinds: !include
+    file: esphome-modular-lvgl-buttons/ui/cover/cover_button.yaml
+    vars:
+      uid: office_blinds
+      row: 2
+      column: 0
+      text: "Blinds"
+      icon: $mdi_blinds
+      entity_id: cover.office_blinds
+      hide_slider: "true"
+
+  heating_boost: !include
+    file: esphome-modular-lvgl-buttons/ui/sensor_button/remote.yaml
+    vars:
+      uid: heating_boost
+      entity_id: sensor.timmerflotte_temp_hmd_sensor_temperature
+      action_entity_id: script.heating_boost_1_hour
+      active_duration: "60"
+      row: 1
+      column: 1
+      text: "Boost Heating"
+      icon: $mdi_thermometer_chevron_up
+      unit: "°C"
+      precision: 0
+
+  spotify2: !include
+    file: esphome-modular-lvgl-buttons/ui/media_player/remote.yaml
+    vars:
+      uid: spotify2
+      page_id: music_page
+      entity_id: media_player.spotify_derekm7
+      row: 0
+      column: 0
+      text: "Spotify"
+      icon: $mdi_spotify
+
+  homepod1: !include
+    file: esphome-modular-lvgl-buttons/ui/media_player/remote.yaml
+    vars:
+      uid: homepod1
+      page_id: music_page
+      entity_id: media_player.homepod_k
+      row: 0
+      column: 1
+      text: "HomePod"
+      icon: $mdi_apple
+
+  homepod2: !include
+    file: esphome-modular-lvgl-buttons/ui/media_player/remote.yaml
+    vars:
+      uid: homepod2
+      page_id: music_page
+      entity_id: media_player.homepod_k
+      row: 1
+      column: 0
+      text: "HomePod"
+      icon: $mdi_apple
+
+  homepod3: !include
+    file: esphome-modular-lvgl-buttons/ui/media_player/remote.yaml
+    vars:
+      uid: homepod3
+      page_id: music_page
+      entity_id: media_player.homepod_k
+      row: 1
+      column: 1
+      text: "HomePod"
+      icon: $mdi_apple
+
+
+lvgl:
+  pages:
+
+    - id: main_page
+      layout: 3x2
+      styles: page_style
+      <<: !include esphome-modular-lvgl-buttons/common/swipe_navigation.yaml
+
+    - id: music_page
+      layout: 2x2
+      styles: page_style
+      <<: !include esphome-modular-lvgl-buttons/common/swipe_navigation.yaml
+
+
+font:
+  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_icons_40
+    size: 40
+    bpp: 8
+
+    glyphs:
+      - $mdi_ceiling_light
+      - $mdi_apple
+      - $mdi_spotify
+      - $mdi_blinds
+      - $mdi_cellphone_charging
+      - $mdi_thermometer_chevron_up
+      - $mdi_remote_desktop
+      - $mdi_music_note
+      - $mdi_chevron_left
+
+      - $mdi_weather_cloudy
+      - $mdi_weather_partly_cloudy
+      - $mdi_weather_sunny
+      - $mdi_weather_rainy
+
+      - $mdi_brightness_6
+      - $mdi_chevron_up
+      - $mdi_circle_opacity
+      - $mdi_eyedropper
+      - $mdi_lightbulb
+
+      # Main dashboard icons
+      - $mdi_desk_lamp
+      - $mdi_laptop
+      - $mdi_clock_time_eight
+      - $mdi_thermometer
+      - $mdi_information_box
+      - $mdi_power_plug
+      - $mdi_led_strip
+      - $mdi_play
+      - $mdi_pause
+      - $mdi_skip_next
+      - $mdi_skip_previous
+      - $mdi_shuffle
+      - $mdi_repeat
+      - $mdi_monitor
+      - $mdi_repeat_once
+      - $mdi_volume_high
+
+  - file: "gfonts://Nunito"
+    id: nunito_2026
+    size: 20
+  - file: "fonts/flux-cap.ttf"
+    id: flux_capacitor_font
+    size: 100
+    bpp: 4
+    glyphs:
+      - "\uF000"
+  - file: "fonts/marty_mcfly.ttf"
+    id: marty_mcfly_font
+    size: 100
+    bpp: 4
+    glyphs:
+      - "\uE801"
