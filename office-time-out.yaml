@@ -2,10 +2,28 @@
 # OFFICE PANEL — with backlight idle-timeout enabled
 # ═══════════════════════════════════════════════════════════════════════════════
 # Same as office-panel.yaml but configured so the display turns off after a
-# short period of inactivity and turns back on when you touch the screen.
+# period of inactivity and turns back on when you touch the screen.
+#
+# ─── What differs from office-panel.yaml (to enable the timeout) ───────────────
+# The `backlight` package (common/backlight_time.yaml) is included in BOTH
+# files — no package changes are needed. Only one substitution really matters:
+#
+#     display_backlight_timeout_always_enabled: "true"
+#       ↑ office-panel.yaml has "false" → screen only sleeps in Night mode.
+#         Set to "true" here → screen sleeps in Day, Evening, and Night.
+#
+# Optionally tune the delay via:
+#     display_backlight_timeout_initial: "10"   # minutes of no touch → sleep
+#         Same key already exists in office-panel.yaml (set to 30 there);
+#         only the value changes.
+#
+# Everything else that looks different in this file (tiles, extra music_page,
+# custom fonts, esphome.name) is orthogonal — it just reflects a different
+# device layout and is NOT required for the timeout feature.
+# ───────────────────────────────────────────────────────────────────────────────
 #
 # How the idle-timeout works (high level):
-#   1. The `common/backlight_time.yaml` package binds two LVGL hooks:
+#   1. common/backlight_time.yaml binds two LVGL hooks:
 #        - lvgl.on_idle   → fires after N minutes of no touch input
 #        - lvgl.on_resume → fires on the next touch (auto-resumes LVGL)
 #   2. When on_idle fires it calls `light.turn_off: display_backlight` and
@@ -14,8 +32,8 @@
 #   3. On the next touch, on_resume restores the last brightness — again
 #      using the same fade.
 #
-# The behavior is controlled by THREE substitutions below. They are the only
-# knobs you need to touch to make this work.
+# Runtime tweak: the timeout is also exposed as the Home Assistant number
+# entity `display_backlight_timeout` (in minutes). Set to -1 to disable.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 substitutions:
@@ -41,7 +59,7 @@ substitutions:
   #   "true"  → idle-off fires in ALL modes (Day, Evening, Night).
   #             This is what gives you "after N minutes idle, screen off" 24/7.
   #
-  display_backlight_timeout_always_enabled: "true"
+  display_backlight_timeout_always_enabled: "true"   # ← only real change vs office-panel.yaml ("false" there)
 
   # display_backlight_timeout_initial:
   #   Minutes of LVGL idle before the backlight turns off.
@@ -50,7 +68,7 @@ substitutions:
   #   creates automatically.
   #   Set to "-1" to disable the idle-off entirely.
   #
-  display_backlight_timeout_initial: "1"
+  display_backlight_timeout_initial: "10"            # 10 minutes (office-panel.yaml uses "30")
 
   screen_width: "480"
   screen_height: "480"
